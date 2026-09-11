@@ -1,0 +1,66 @@
+# ---------- Visual Studio / .NET ----------
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+*.userprefs
+TestResults/
+[Ll]ogs/
+*.log
+*.binlog
+
+# Rider
+*.sln.iml
+
+# Publish output
+publish/
+artifacts/
+*.pubxml.user
+
+# ---------- Node / Vue ----------
+node_modules/
+dist/
+web/dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 前端构建产物（落入 Host/wwwroot，不入库）
+src/DBPilot.AspNetCore/wwwroot/
+
+# ---------- 环境 / 敏感信息 ----------
+appsettings.Development.json
+appsettings.Local.json
+*.env
+.env.*
+!.env.example
+# Sample 本地真实配置（真实凭据仅本地保留，仓库只有 appsettings.template.json）
+samples/*/appsettings.json
+# 会话 cookie / 调试输出
+dbpilot_cookies.txt
+*.out
+# 内部开发过程文档（仅本地）
+PROGRESS.md
+.claude/settings.local.json
+
+# ---------- 操作系统 ----------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+/doc/需求UI
+/doc
+
+# ---------- SQLite 平台库运行期数据文件（Sample 本地库）----------
+*.db
+*.db-wal
+*.db-shm
+.claude/

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>DBPilot platform-store engine package for SQLite — embedded single-file metadata DB for single-process deployments (storage axis only; SQLite cannot be a monitored instance).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DBPilot.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DBPilot.Core\DBPilot.Core.csproj" />
+    <ProjectReference Include="..\DBPilot.Storage\DBPilot.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Chloe" Version="5.56.0" />
+    <PackageReference Include="Chloe.SQLite" Version="5.56.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 平台库结构脚本按引擎分目录存放于 scripts/database/sqlite/，随引擎包内嵌 -->
+    <EmbeddedResource Include="..\..\scripts\database\sqlite\schema.sql" LogicalName="DBPilot.Sqlite.Scripts.schema.sql" />
+  </ItemGroup>
+
+</Project>

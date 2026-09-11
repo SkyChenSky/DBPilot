@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- NuGet 包元数据（仅被打包的 src 包实际消费；samples/tests 不打包不受影响） -->
+  <PropertyGroup>
+    <Authors>SkyChenSky</Authors>
+    <Owners>SkyChenSky</Owners>
+    <Copyright>Copyright © SkyChenSky</Copyright>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/SkyChenSky/DBPilot</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/SkyChenSky/DBPilot</PackageProjectUrl>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>dbpilot;database;monitoring;performance;diagnostics;dba</PackageTags>
+  </PropertyGroup>
+</Project>

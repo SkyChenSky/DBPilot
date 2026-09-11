@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 官方 nuget.org 包消费示例：主包 + 引擎包（按需选装可并存）
+         主包带 Controllers/MCP/认证/调度/前端静态资产；引擎包被引用即自动注册监控 Provider -->
+    <PackageReference Include="DBPilot.AspNetCore" Version="0.5.1" />
+    <PackageReference Include="DBPilot.SqlServer" Version="0.5.1" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>DBPilot engine package for SQL Server 2008–2022 — monitoring provider (DMV / Extended Events) plus platform-store support so SQL Server can also host the metadata DB.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DBPilot.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DBPilot.Core\DBPilot.Core.csproj" />
+    <ProjectReference Include="..\DBPilot.Storage\DBPilot.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Chloe" Version="5.56.0" />
+    <PackageReference Include="Chloe.SqlServer" Version="5.56.0" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 平台库结构脚本按引擎分目录存放于 scripts/database/sqlserver/，随引擎包内嵌 -->
+    <EmbeddedResource Include="..\..\scripts\database\sqlserver\schema.sql" LogicalName="DBPilot.SqlServer.Scripts.schema.sql" />
+  </ItemGroup>
+
+</Project>

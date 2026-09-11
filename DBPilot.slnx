@@ -1,0 +1,22 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/DBPilot.Sample.MySql/DBPilot.Sample.MySql.csproj" />
+    <Project Path="samples/DBPilot.Sample.PostgreSql/DBPilot.Sample.PostgreSql.csproj" />
+    <Project Path="samples/DBPilot.Sample.Sqlite/DBPilot.Sample.Sqlite.csproj" />
+    <Project Path="samples/DBPilot.Sample.SqlServer/DBPilot.Sample.SqlServer.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/DBPilot.AspNetCore/DBPilot.AspNetCore.csproj" />
+    <Project Path="src/DBPilot.Common/DBPilot.Common.csproj" />
+    <Project Path="src/DBPilot.Core/DBPilot.Core.csproj" />
+    <Project Path="src/DBPilot/DBPilot.csproj" />
+    <Project Path="src/DBPilot.MySql/DBPilot.MySql.csproj" />
+    <Project Path="src/DBPilot.PostgreSql/DBPilot.PostgreSql.csproj" />
+    <Project Path="src/DBPilot.SqlServer/DBPilot.SqlServer.csproj" />
+    <Project Path="src/DBPilot.Sqlite/DBPilot.Sqlite.csproj" />
+    <Project Path="src/DBPilot.Storage/DBPilot.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DBPilot.UnitTests/DBPilot.UnitTests.csproj" />
+  </Folder>
+</Solution>

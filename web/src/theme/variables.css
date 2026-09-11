@@ -1,0 +1,54 @@
+/*
+ * 全局 CSS 变量唯一色值来源（CSS 侧）。
+ * 整体结构：暗色外壳（侧栏/顶栏/登录页）+ 浅色工作台（标签条/内容画布/弹层）。
+ * 与 theme/palette.ts 手工镜像维护：改任一侧必须同步另一侧。
+ * 页面 SFC 禁止再写死颜色，统一引用这些变量；外壳区域（MainLayout 侧栏顶栏/Login）用 --chrome-* 系列。
+ */
+:root {
+  /* ---------- 浅色工作台（内容画布 / 卡片 / 弹层） ---------- */
+  --bg-body: #f0f2f5;
+  --panel-bg: #ffffff;
+  --panel-bg-elevated: #ffffff;
+  --code-bg: #f6f8fa;
+
+  --border-color: #d9dce3;
+  --border-color-split: #f0f0f0;
+
+  --text-primary: #26303e;
+  --text-secondary: #5c6b80;
+  --text-tertiary: #8a97a8;
+  --text-disabled: #bcc4cf;
+
+  /* 品牌 */
+  --color-primary: #1677ff;
+  --color-primary-bg: #e6f4ff;
+  --color-cyan: #13c2c2;
+
+  /* 语义三件套（text/bg/border），info=primary */
+  --success-text: #52c41a;
+  --success-bg: #f6ffed;
+  --success-border: #b7eb8f;
+  --warning-text: #fa8c16;
+  --warning-bg: #fff7e6;
+  --warning-border: #ffd591;
+  --danger-text: #f5222d;
+  --danger-bg: #fff1f0;
+  --danger-border: #ffa39e;
+  --purple-text: #722ed1;
+  --purple-bg: #f9f0ff;
+  --purple-border: #d3adf7;
+
+  /* ---------- 暗色外壳（侧栏/顶栏/标签条/登录页专用） ---------- */
+  --chrome-bg: #10141d;
+  --chrome-bg-deep: #0b0e14;
+  --chrome-panel: #1b2331;
+  --chrome-border: #2a3446;
+  --chrome-border-split: #202a3a;
+  --chrome-text-primary: #e8eef7;
+  --chrome-text-secondary: #9daabb;
+  --chrome-text-tertiary: #6e7d92;
+  --chrome-text-disabled: #4b586c;
+  --chrome-primary: #3c9eff;
+  --chrome-primary-bg: rgba(60, 158, 255, 0.12);
+  --chrome-cyan: #36cfc9;
+}

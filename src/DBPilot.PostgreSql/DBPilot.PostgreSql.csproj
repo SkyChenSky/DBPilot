@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>DBPilot engine package for PostgreSQL 13+ — monitoring provider (pg_stat_* / pg_stat_statements) plus platform-store support so PostgreSQL can also host the metadata DB.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DBPilot.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DBPilot.Core\DBPilot.Core.csproj" />
+    <ProjectReference Include="..\DBPilot.Storage\DBPilot.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Chloe" Version="5.56.0" />
+    <PackageReference Include="Chloe.PostgreSQL" Version="5.56.0" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 平台库结构脚本按引擎分目录存放于 scripts/database/postgresql/，随引擎包内嵌 -->
+    <EmbeddedResource Include="..\..\scripts\database\postgresql\schema.sql" LogicalName="DBPilot.PostgreSql.Scripts.schema.sql" />
+  </ItemGroup>
+
+</Project>

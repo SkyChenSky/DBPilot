@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- DBPilot 元包：一行装齐（AspNetCore 宿主 + 四个引擎包）。本身无代码，只承载依赖与包门面 -->
+  <PropertyGroup>
+    <PackageId>DBPilot</PackageId>
+    <Description>DBPilot — self-hosted database autonomous diagnostics platform (Alibaba Cloud DAS-style) for SQL Server, MySQL and PostgreSQL: performance trends, AAS insight, Top SQL, query-plan change tracking, blocking/deadlock analysis and a read-only MCP server for AI agents. Metapackage: references DBPilot.AspNetCore plus all engine packages (SqlServer, MySql, PostgreSql, Sqlite) for one-line install.</Description>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DBPilot.AspNetCore\DBPilot.AspNetCore.csproj" />
+    <ProjectReference Include="..\DBPilot.SqlServer\DBPilot.SqlServer.csproj" />
+    <ProjectReference Include="..\DBPilot.MySql\DBPilot.MySql.csproj" />
+    <ProjectReference Include="..\DBPilot.PostgreSql\DBPilot.PostgreSql.csproj" />
+    <ProjectReference Include="..\DBPilot.Sqlite\DBPilot.Sqlite.csproj" />
+  </ItemGroup>
+
+</Project>

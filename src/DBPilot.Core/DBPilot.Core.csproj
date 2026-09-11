@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Core domain services for DBPilot — collectors, query services and performance-insight logic shared by hosts and tests. DBPilot is the self-hosted database autonomous diagnostics platform (DAS-style) for SQL Server, MySQL and PostgreSQL.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DBPilot.Common\DBPilot.Common.csproj" />
+    <ProjectReference Include="..\DBPilot.Storage\DBPilot.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DBPilot.UnitTests" />
+  </ItemGroup>
+
+</Project>
