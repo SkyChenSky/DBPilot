@@ -142,7 +142,7 @@ The connection string may point at an empty database (existing, or an account al
 1. In a directory **without a project file** (your home or a temp directory), create a two-line `hash.cs`. **Do not put it inside dbpilot-demo or any project directory** — there `dotnet run` runs the project and `hash.cs` is passed to it as an argument:
 
 ```csharp
-#:package DBPilot.Core@0.5.2
+#:package DBPilot.Core@0.5.3
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 

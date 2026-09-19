@@ -141,7 +141,7 @@ builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.SqlServer);
 1. 在一个**没有工程文件的目录**（如用户主目录、临时目录）新建 `hash.cs`，内容两行。**不能放在 dbpilot-demo 这类工程目录里**——那里 `dotnet run` 跑的是工程，`hash.cs` 会被当成参数传给工程：
 
 ```csharp
-#:package DBPilot.Core@0.5.2
+#:package DBPilot.Core@0.5.3
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 
