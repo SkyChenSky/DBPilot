@@ -137,7 +137,7 @@ The connection string may point at an empty database (existing, or an account al
 
 ## Password and master key
 
-**Change the login password**: passwords are stored as PBKDF2 hashes (`pbkdf2$iterations$salt$hash`) in `DBPilot:Auth:PasswordHash`. Generating one does not require this repository — create a `hash.cs` anywhere (.NET 10 file-based app; the package directive pulls the dependency automatically, bump the version as needed):
+**Change the login password**: passwords are stored as PBKDF2 hashes (`pbkdf2$iterations$salt$hash`) in `DBPilot:Auth:PasswordHash`. Generating one does not require this repository — create a `hash.cs` in a directory **without a project file** (your home or temp directory works; .NET 10 file-based app, the package directive pulls the dependency automatically, bump the version as needed. Note: it cannot live inside a project directory such as dbpilot-demo — there `dotnet run` prefers the project and `hash.cs` is passed to it as an argument):
 
 ```csharp
 #:package DBPilot.Core@0.5.2

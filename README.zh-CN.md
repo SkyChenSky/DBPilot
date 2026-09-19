@@ -136,7 +136,7 @@ builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.SqlServer);
 
 ## 登录密码与主密钥
 
-**修改登录密码**：密码以 PBKDF2 哈希存储（`pbkdf2$iterations$salt$hash`），写入 `DBPilot:Auth:PasswordHash`。生成不依赖本仓库——任意目录建一个 `hash.cs`（.NET 10 文件式应用，自动拉包，版本号可换最新）：
+**修改登录密码**：密码以 PBKDF2 哈希存储（`pbkdf2$iterations$salt$hash`），写入 `DBPilot:Auth:PasswordHash`。生成不依赖本仓库——在一个**没有工程文件的目录**（如用户主目录、临时目录）建 `hash.cs`（.NET 10 文件式应用，自动拉包，版本号可换最新。注意：不能放在 dbpilot-demo 这类工程目录里——工程目录下 `dotnet run` 优先跑工程，`hash.cs` 会被当成应用参数）：
 
 ```csharp
 #:package DBPilot.Core@0.5.2
