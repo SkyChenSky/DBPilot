@@ -58,21 +58,19 @@ DBPilot 持续采集数据库实例的性能数据，在一个 Web 控制台里�
 
 ## 快速开始
 
-最快路径是 NuGet 包（前端资产已内嵌，无需 Node.js）：
+最快路径是 NuGet 包（前端资产已内嵌，无需 Node.js）。依赖：.NET SDK 10.0+。五步：
 
-| 依赖 | 版本 |
-|---|---|
-| .NET SDK | 10.0+ |
+1. 创建宿主工程并安装元包（AspNetCore + 四个引擎包，一行装齐）：
 
 ```bash
 mkdir dbpilot-demo && cd dbpilot-demo
 dotnet new web
-dotnet add package DBPilot          # 元包：AspNetCore + 四个引擎包，一行装齐
+dotnet add package DBPilot
 ```
 
 > 宿主工程不要取名 `dbpilot`（或任何 `DBPilot.*`）——与 NuGet 包同名会导致还原失败（NU1108 检测到循环）。
 
-`Program.cs`：
+2. `Program.cs` 整份替换为：
 
 ```csharp
 using DBPilot.AspNetCore.Extension;
@@ -86,7 +84,7 @@ app.UseDBPilot();
 app.Run();
 ```
 
-`appsettings.json`——抄这份模板即可跑（SQLite 形态，占位处换成自己的值）：
+3. `appsettings.json` 整份替换为（SQLite 形态，`Secret` 占位处换成自己的值）：
 
 ```json
 {
@@ -111,11 +109,13 @@ app.Run();
 
 几处说明：`ConnectionString` 与 `Auth:Secret` 两条必填（连接串指向 SQLite 库文件、启动自动建库建表；主密钥用于登录 Cookie 签名与实例凭据加密，缺失启动即报错，生成方法见[登录密码与主密钥](#登录密码与主密钥)）；`PasswordHash` 这一串就是默认密码 `dbpilot@2026` 的哈希，不动即用默认密码登录；`Mcp:ApiKey` 留空 = MCP 关。
 
+4. 启动：
+
 ```bash
 dotnet run    # → http://localhost:5000
 ```
 
-浏览器打开后用默认账号 `admin` / `dbpilot@2026` 登录（**部署后先改密码**，见[登录密码与主密钥](#登录密码与主密钥)），然后接入第一个被监控实例：**实例管理 → 新增**（地址 + 账号密码，凭据加密存储）→ 连接测试 → 启用。实时页面立即可用，历史数据随运行积累。
+5. 浏览器打开，用默认账号 `admin` / `dbpilot@2026` 登录（**部署后先改密码**，见[登录密码与主密钥](#登录密码与主密钥)），然后接入第一个被监控实例：**实例管理 → 新增**（地址 + 账号密码，凭据加密存储）→ 连接测试 → 启用。实时页面立即可用，历史数据随运行积累。
 
 ### 平台库换 SQL Server
 
@@ -164,17 +164,25 @@ openssl rand -base64 32                                    # Linux / macOS / Git
 
 ## 源码调试
 
-从源码构建跑起来。相比 NuGet 接入，额外需要 **Node.js 20+**：内嵌 Web UI 由前端构建产出（产物不进 git；NuGet 包里带的是已构建好的前端）——克隆后先跑一次，之后仅前端有改动才需要重跑：
+从源码构建跑起来。相比 NuGet 接入，额外需要 **Node.js 20+**（内嵌 Web UI 由前端构建产出，产物不进 git；NuGet 包里带的是已构建好的前端）。三步：
+
+1. 克隆仓库并一键构建（前端构建 + 编译 + 生成 sample 的 appsettings.json；默认 SqlServer 宿主，换宿主传参 `setup.bat MySql` / `Sqlite` / `PostgreSql`）：
 
 ```bash
 git clone https://github.com/SkyChenSky/DBPilot.git
 cd DBPilot
-scripts\run\setup.bat    # 一次跑完：前端构建 + 编译 + 生成 sample 的 appsettings.json（默认 SqlServer 宿主，换宿主传参：setup.bat MySql / Sqlite / PostgreSql）
+scripts\run\setup.bat
 ```
 
-剩下两步手动：编辑 `samples/DBPilot.Sample.SqlServer/appsettings.json`（连接串 + `Auth:Secret`）→ `dotnet run --project samples/DBPilot.Sample.SqlServer`（→ http://localhost:5200）。
+2. 编辑 `samples/DBPilot.Sample.SqlServer/appsettings.json`，填入连接串与 `Auth:Secret`。
 
-非 Windows 或想手动执行时，`setup.bat` 等价于：
+3. 启动：
+
+```bash
+dotnet run --project samples/DBPilot.Sample.SqlServer    # → http://localhost:5200
+```
+
+前端构建克隆后跑一次即可，之后仅前端有改动才需要重跑。非 Windows 或想手动执行时，第 1 步等价于：
 
 ```bash
 cd web && npm install && npm run build

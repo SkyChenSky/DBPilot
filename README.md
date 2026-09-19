@@ -59,21 +59,19 @@ DBPilot continuously samples your database instances and turns the data into the
 
 ## Quick start
 
-The fastest path is the NuGet packages (frontend assets are embedded — no Node.js needed):
+The fastest path is the NuGet packages (frontend assets are embedded — no Node.js needed). Requires .NET SDK 10.0+. Five steps:
 
-| Requirement | Version |
-|---|---|
-| .NET SDK | 10.0+ |
+1. Create a host project and add the metapackage (AspNetCore + all four engine packages):
 
 ```bash
 mkdir dbpilot-demo && cd dbpilot-demo
 dotnet new web
-dotnet add package DBPilot          # metapackage: AspNetCore + all four engine packages
+dotnet add package DBPilot
 ```
 
 > Don't name your host project `dbpilot` (or `DBPilot.*`) — the name would collide with the NuGet package and restore fails with NU1108 (cycle detected).
 
-`Program.cs`:
+2. Replace `Program.cs` with:
 
 ```csharp
 using DBPilot.AspNetCore.Extension;
@@ -87,7 +85,7 @@ app.UseDBPilot();
 app.Run();
 ```
 
-`appsettings.json` — copy this template and you are ready to run (SQLite flavor; replace the placeholders):
+3. Replace `appsettings.json` with (SQLite flavor; replace the placeholders):
 
 ```json
 {
@@ -112,11 +110,13 @@ app.Run();
 
 A few notes: `ConnectionString` and `Auth:Secret` are the two required keys (the SQLite file and schema are created automatically on startup; the master key signs login cookies and encrypts instance credentials — startup fails without it, see [Password and master key](#password-and-master-key) for generating one); the `PasswordHash` above is the hash of the default password `dbpilot@2026` — keep it to log in with the default password; `Mcp:ApiKey` empty = MCP off.
 
+4. Run:
+
 ```bash
 dotnet run    # → http://localhost:5000
 ```
 
-Log in with the default account `admin` / `dbpilot@2026` (**change it after deployment** — see [Password and master key](#password-and-master-key)), then register your first monitored instance: **Instances → Add** (host + credentials, stored encrypted) → Test connection → Enable. Real-time pages work immediately; history accumulates over time.
+5. Open the site and log in with the default account `admin` / `dbpilot@2026` (**change it after deployment** — see [Password and master key](#password-and-master-key)), then register your first monitored instance: **Instances → Add** (host + credentials, stored encrypted) → Test connection → Enable. Real-time pages work immediately; history accumulates over time.
 
 ### SQL Server as the metadata store
 
@@ -165,17 +165,25 @@ openssl rand -base64 32                                    # Linux / macOS / Git
 
 ## Building from source
 
-Build and run from source. Compared to the NuGet path this additionally requires **Node.js 20+**: the embedded web UI is produced by the frontend build (output not committed to git; NuGet packages ship prebuilt) — run it once after cloning, and again only when the frontend changes:
+Build and run from source. Compared to the NuGet path this additionally requires **Node.js 20+** (the embedded web UI is produced by the frontend build; output is not committed to git, NuGet packages ship it prebuilt). Three steps:
+
+1. Clone the repository and run the one-shot setup (frontend build + compile + sample appsettings.json; default SqlServer host — pass `MySql` / `Sqlite` / `PostgreSql` to switch):
 
 ```bash
 git clone https://github.com/SkyChenSky/DBPilot.git
 cd DBPilot
-scripts\run\setup.bat    # one shot: frontend build + compile + sample appsettings.json (default SqlServer host; pass MySql / Sqlite / PostgreSql to switch)
+scripts\run\setup.bat
 ```
 
-Two manual steps remain: edit `samples/DBPilot.Sample.SqlServer/appsettings.json` (connection string + `Auth:Secret`), then `dotnet run --project samples/DBPilot.Sample.SqlServer` (→ http://localhost:5200).
+2. Edit `samples/DBPilot.Sample.SqlServer/appsettings.json` — fill in the connection string and `Auth:Secret`.
 
-On non-Windows, or run manually — `setup.bat` is equivalent to:
+3. Start:
+
+```bash
+dotnet run --project samples/DBPilot.Sample.SqlServer    # → http://localhost:5200
+```
+
+The frontend build is needed once after cloning, and again only when the frontend changes. On non-Windows (or run manually), step 1 is equivalent to:
 
 ```bash
 cd web && npm install && npm run build
