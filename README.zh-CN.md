@@ -155,7 +155,14 @@ dotnet run hash.cs <新密码>
 
 已克隆仓库的可跳过上面三步：`dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <新密码>`（四个 Sample 任一均可）。
 
-**主密钥（`Auth:Secret` / 环境变量 `DBPILOT_MASTER_KEY`，二选一必填）**：登录 Cookie 签名 + 实例凭据 AES-GCM 加密共用，缺失启动即报错（防重启后已录入实例的密码无法解密）。生成随手一个：
+**主密钥（`Auth:Secret` / 环境变量 `DBPILOT_MASTER_KEY`，二选一必填）**，全程序两个用途：
+
+| 用途 | 做什么 | 换主密钥的后果 |
+|---|---|---|
+| 登录 Cookie 签名 | HMAC-SHA256 签发/校验登录票据 | 已登录会话全部失效，重新登录即恢复 |
+| 实例凭据加密 | 被监控实例的密码以 AES-256-GCM 密文存平台库，采集时解密后连接 | **旧密文不可再解、无恢复手段**，需在实例管理中重新录入各实例的连接密码 |
+
+因此主密钥缺失启动即报错（防「先跑起来后补配」导致已录入实例的凭据永久不可解），且**一经使用请勿更换**。生成随手一个：
 
 ```bash
 openssl rand -base64 32                                    # Linux / macOS / Git Bash
@@ -409,6 +416,7 @@ app.Run();
 | 启动告警 `平台库结构初始化失败` | 检查 `DBPilot:ConnectionString` 与数据库可达性；暂不接库可忽略 |
 | 打开首页 404 / 旧版本页面 | 未构建前端：`cd web && npm install && npm run build` 后重新 `dotnet build` 再重启 |
 | 启动报错「DBPilot 主密钥未配置」 | 主密钥必填：设置 `DBPilot:Auth:Secret` 或环境变量 `DBPILOT_MASTER_KEY`（二选一），见[配置](#配置appsettingsjson) |
+| 采集报错 `The computed authentication tag did not match the input authentication tag` | 主密钥与实例凭据密文不匹配——多因录入实例后更换过 `Auth:Secret`。旧密文无法解密恢复，在实例管理中重新编辑保存各实例的连接密码即可 |
 | 性能洞察无数据 | 确认实例已启用且采集正常，采样满 1 分钟后生成 |
 | 死锁/慢SQL 事件看不到 | 事件落盘有约 1 分钟缓冲延迟，稍等后刷新 |
 

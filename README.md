@@ -156,7 +156,14 @@ dotnet run hash.cs <new-password>
 
 If you cloned the repository, skip the three steps: `dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <new-password>` (any of the four samples works).
 
-**Master key (`Auth:Secret` or env `DBPILOT_MASTER_KEY` — either one, required)**: shared by login-cookie signing and instance-credential AES-GCM encryption; startup fails without it (protects against instance credentials becoming undecryptable after a restart). Generate one on the spot:
+**Master key (`Auth:Secret` or env `DBPILOT_MASTER_KEY` — either one, required)** — used for exactly two things:
+
+| Purpose | What it does | If you change the key |
+|---|---|---|
+| Login-cookie signing | issues/validates login tickets (HMAC-SHA256) | all sessions logged out; just log in again |
+| Instance-credential encryption | monitored instances' passwords are stored AES-256-GCM-encrypted in the metadata DB and decrypted by collectors on connect | **old ciphertext becomes undecryptable — no recovery**; re-enter each instance's connection password in the UI |
+
+That is why startup fails without it (prevents "run first, configure later" leaving instance credentials permanently undecryptable), and why you should **not change it once in use**. Generate one on the spot:
 
 ```bash
 openssl rand -base64 32                                    # Linux / macOS / Git Bash
@@ -392,6 +399,7 @@ Notes:
 | Startup warning `平台库结构初始化失败` (metadata schema init failed) | Check `DBPilot:ConnectionString` and DB reachability; ignorable if you don't need persistence yet |
 | Home page 404 / stale UI | Frontend not built: `cd web && npm install && npm run build`, rebuild (`dotnet build`), restart |
 | Startup error "DBPilot 主密钥未配置" (master key not configured) | The master key is required: set `DBPilot:Auth:Secret` or the env var `DBPILOT_MASTER_KEY` (either one), see [Configuration](#configuration-appsettingsjson) |
+| Collector error `The computed authentication tag did not match the input authentication tag` | The master key doesn't match the stored instance-credential ciphertext — typically `Auth:Secret` was changed after instances were registered. The old ciphertext cannot be decrypted; re-enter each instance's connection password (Instances → edit) |
 | Performance insight empty | Instance enabled and collecting? Insights need ~1 minute of samples |
 | Deadlock / slow SQL events not showing yet | Event files have ~1 minute write buffering — wait and refresh |
 
