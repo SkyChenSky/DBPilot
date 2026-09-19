@@ -19,6 +19,8 @@ DBPilot continuously samples your database instances and turns the data into the
 - [Highlights](#highlights)
 - [Screenshots](#screenshots)
 - [Quick start](#quick-start)
+- [Password and master key](#password-and-master-key)
+- [Building from source](#building-from-source)
 - [Architecture](#architecture)
 - [Features](#features)
 - [Engine support matrix](#engine-support-matrix)
@@ -26,7 +28,6 @@ DBPilot continuously samples your database instances and turns the data into the
 - [Overhead on monitored instances](#overhead-on-monitored-instances)
 - [Configuration (appsettings.json)](#configuration-appsettingsjson)
 - [Embedding via NuGet](#embedding-via-nuget)
-- [Development](#development)
 - [FAQ](#faq)
 - [License](#license)
 
@@ -79,39 +80,108 @@ using DBPilot.AspNetCore.Extension;
 using DBPilot.Core.Providers;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.SqlServer);  // metadata-store engine
+builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.Sqlite);  // metadata-store engine: SQLite, zero external dependencies
 
 var app = builder.Build();
 app.UseDBPilot();
 app.Run();
 ```
 
-`appsettings.json` — one connection string pointing at an empty database (schema is created automatically):
+`appsettings.json` — copy this template and you are ready to run (SQLite flavor; replace the placeholders):
 
 ```json
 {
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": { "Microsoft": "Warning", "System": "Warning" }
+    }
+  },
   "DBPilot": {
-    "ConnectionString": "Server=...;Database=dbpilot;User Id=...;Password=...;TrustServerCertificate=true"
-  }
+    "ConnectionString": "Data Source=dbpilot_platform.db",
+    "Mcp": { "ApiKey": "<random key; non-empty enables MCP, empty = off>" },
+    "Auth": {
+      "Username": "admin",
+      "PasswordHash": "pbkdf2$100000$IOaBWezPYRnzEbBWYwLxZA==$xBWm8jjDfanDmyRttfnZoG4MIk8lcF0UnDbpjJuWaEU=",
+      "Secret": "<your master key (>= 32-char random string)>"
+    }
+  },
+  "AllowedHosts": "*"
 }
 ```
+
+A few notes: `ConnectionString` and `Auth:Secret` are the two required keys (the SQLite file and schema are created automatically on startup; the master key signs login cookies and encrypts instance credentials — startup fails without it, see [Password and master key](#password-and-master-key) for generating one); the `PasswordHash` above is the hash of the default password `dbpilot@2026` — keep it to log in with the default password; `Mcp:ApiKey` empty = MCP off.
 
 ```bash
 dotnet run    # → http://localhost:5000
 ```
 
-Log in with the default account `admin` / `dbpilot@2026` (**change it after deployment** — see [Configuration](#configuration-appsettingsjson)), then register your first monitored instance: **Instances → Add** (host + credentials, stored encrypted) → Test connection → Enable. Real-time pages work immediately; history accumulates over time.
+Log in with the default account `admin` / `dbpilot@2026` (**change it after deployment** — see [Password and master key](#password-and-master-key)), then register your first monitored instance: **Instances → Add** (host + credentials, stored encrypted) → Test connection → Enable. Real-time pages work immediately; history accumulates over time.
 
-A ready-made copy of this setup lives in [`samples/DBPilot.Sample.SqlServer`](samples/DBPilot.Sample.SqlServer) (plus MySQL :5201 / SQLite :5203 / PostgreSQL :5204 variants) — if you prefer building from source:
+### SQL Server as the metadata store
+
+Switching the metadata-store engine changes exactly two things (`PlatformEngine` and the connection string; everything else stays. MySQL / PostgreSQL work the same way via `DbpilotEngine.MySql` / `DbpilotEngine.PostgreSql`):
+
+```csharp
+builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.SqlServer);
+```
+
+```json
+"ConnectionString": "Server=<your-host>,1433;Initial Catalog=dbpilot;User Id=<user>;Password=<password>;Max Pool Size=20;Encrypt=False;TrustServerCertificate=True"
+```
+
+The connection string may point at an empty database (existing, or an account allowed to create one); the schema is created automatically on startup.
+
+> SQLite as the metadata store is for zero-dependency out-of-the-box setup — fine for evaluation and single-machine lightweight deployments (no multi-process Roles). For long-term/production use prefer SQL Server / MySQL / PostgreSQL: switching later only changes `PlatformEngine` and the connection string. The metadata-store engine and monitored engines are independent axes; already-registered instances are unaffected.
+> Ready-made hosts for this setup live in [`samples/`](samples/) (SqlServer :5200 / MySql :5201 / Sqlite :5203 / PostgreSql :5204) — see [Building from source](#building-from-source).
+
+## Password and master key
+
+**Change the login password**: passwords are stored as PBKDF2 hashes (`pbkdf2$iterations$salt$hash`) in `DBPilot:Auth:PasswordHash`. Generating one does not require this repository — create a `hash.cs` anywhere (.NET 10 file-based app; the package directive pulls the dependency automatically, bump the version as needed):
+
+```csharp
+#:package DBPilot.Core@0.5.2
+Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
+```
 
 ```bash
-dotnet build
-cd samples/DBPilot.Sample.SqlServer
-cp appsettings.template.json appsettings.json   # fill in your connection string
+dotnet run hash.cs <new-password>    # paste the whole output into DBPilot:Auth:PasswordHash, restart to apply
+```
+
+If you cloned the repository: `dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <new-password>` (any of the four samples works).
+
+**Master key (`Auth:Secret` or env `DBPILOT_MASTER_KEY` — either one, required)**: shared by login-cookie signing and instance-credential AES-GCM encryption; startup fails without it (protects against instance credentials becoming undecryptable after a restart). Generate one on the spot:
+
+```bash
+openssl rand -base64 32                                    # Linux / macOS / Git Bash
+# PowerShell: [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N")
+```
+
+## Building from source
+
+Build and run from source. Compared to the NuGet path this additionally requires **Node.js 20+**: the embedded web UI is produced by the frontend build (output not committed to git; NuGet packages ship prebuilt) — run it once after cloning, and again only when the frontend changes:
+
+```bash
+git clone https://github.com/SkyChenSky/DBPilot.git
+cd DBPilot
+cd web && npm install && npm run build    # 1. produce the frontend assets
+cd .. && dotnet build                     # 2. embed them into the DLL
+cd samples/DBPilot.Sample.SqlServer       # 3. start a host (MySql :5201 / Sqlite :5203 / PostgreSql :5204 variants)
+cp appsettings.template.json appsettings.json   # fill in the connection string and Auth:Secret
 dotnet run                                      # → http://localhost:5200
 ```
 
-> Building from source additionally requires Node.js 20+: run `cd web && npm install && npm run build` **once after cloning** — that step produces the embedded web UI (it is not committed to git; NuGet packages ship prebuilt). Rebuild it only when the frontend changes.
+Day-to-day development (backend hot-reload + frontend dev server):
+
+```bash
+scripts\run\dev.bat      # or two terminals:
+dotnet watch --project samples/DBPilot.Sample.SqlServer   # backend (Swagger at /swagger)
+cd web && npm run dev                                     # frontend → http://localhost:5173
+```
+
+- `scripts\run\test.bat` — build + unit tests + frontend build in one go
+- `scripts/test/` — self-test load scripts (SQL Server / MySQL; generate load → verify → clean up). **Never run them against production databases.** See `scripts/README.md`
+- Frontend: dark shell + light workbench, colors from a single source (`web/src/theme/palette.ts`), charts via a shared `initChart()` theme, lazy-rendered through `composables/useChart.ts`
 
 ## Architecture
 
@@ -190,11 +260,10 @@ The browser talks only to the DBPilot service. Real-time pages query instances d
 
 A read-only MCP Server (`/mcp`, Streamable HTTP + API key) hands the platform's evidence — metrics, slow SQL, deadlocks, blocking, indexes — to AI agents as 11 read-only tools. Tools share the same query conventions as the web UI; SQL text is truncated by default to protect the context window; every call is audit-logged.
 
-Enable it (off by default):
+Enable it (off by default; a non-empty `ApiKey` is the switch — there is no separate Enabled flag):
 
 ```json
 "DBPilot": {
-  "Modules": { "Mcp": { "Enabled": true } },
   "Mcp": { "ApiKey": "a sufficiently random key" }
 }
 ```
@@ -243,14 +312,15 @@ GROUP BY login_name;
 
 ## Configuration (appsettings.json)
 
-One required key (`DBPilot:ConnectionString`) + an explicit platform-engine choice (enum in code or `DBPilot:PlatformEngine` in config; missing → startup error). Everything else is optional with sane defaults.
+Two required keys + one required value: `DBPilot:ConnectionString`, `DBPilot:PlatformEngine` (enum in code or config key — either form), and a master key (`DBPilot:Auth:Secret` or env `DBPILOT_MASTER_KEY` — either form); missing → startup error. Everything else is optional with sane defaults.
 
 | Key | Required | Notes |
 |---|---|---|
 | `DBPilot:ConnectionString` | **yes** | Metadata DB connection string; schema auto-created on startup |
 | `DBPilot:PlatformEngine` | **yes (one of the two forms)** | `sqlserver` / `mysql` / `postgresql` / `sqlite`. Preferred form in code: `o.PlatformEngine = DbpilotEngine.SqlServer`; config key is read automatically. Determines schema & ORM dialect; **independent of which engines you monitor** |
-| `DBPilot:Auth:*` | no | Username / password hash / encryption secret. Change password: `dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <new-password>`, put the output into `DBPilot:Auth:PasswordHash` |
-| `DBPILOT_MASTER_KEY` (env) | no | Credential encryption key; without it you re-login after every restart, with it instance passwords survive restarts |
+| `DBPilot:Auth:Secret` | **yes (or the env var)** | Master key: signs login cookies + encrypts instance credentials (AES-GCM); ≥32-char random string; missing → startup error (protects against instance credentials becoming undecryptable after a restart) |
+| `DBPILOT_MASTER_KEY` (env) | **yes (or Auth:Secret)** | Environment-variable form of the master key — friendly for containers/secret managers; the config value takes precedence |
+| `DBPilot:Auth:Username` / `DBPilot:Auth:PasswordHash` | no | Login username (default `admin`) / password hash (default password `dbpilot@2026`); see [Password and master key](#password-and-master-key) |
 | `DBPilot:Mcp:ApiKey` | no | MCP Server switch (non-empty = enabled) |
 | `DBPilot:Roles` | no | Process roles (Web / Collector, both by default); multi-process deployment = 1 collector + N web fronts. Two collectors on one metadata DB double-collect |
 | `DBPilot:AutoInitSchema` | no | Auto-create schema on startup (default true; set false when your DBA owns the schema) |
@@ -296,25 +366,13 @@ Notes:
 - Frontend static assets ship through two channels: `buildTransitive` targets copy them into the consumer's `wwwroot`, and an embedded manifest in the DLL serves as fallback — the UI works even with an empty wwwroot.
 - Fine-grained methods (`AddDbpilotWeb` / `AddDbpilotMcp` / `AddDbpilotQuartz` / ...) remain available for advanced compositions.
 
-## Development
-
-```bash
-scripts\run\dev.bat      # or two terminals:
-dotnet watch --project samples/DBPilot.Sample.SqlServer   # backend (Swagger at /swagger)
-cd web && npm run dev                                     # frontend → http://localhost:5173
-```
-
-- `scripts\run\test.bat` — build + unit tests + frontend build in one go
-- `scripts/test/` — self-test load scripts (SQL Server / MySQL; generate load → verify → clean up). **Never run them against production databases.** See `scripts/README.md`
-- Frontend: dark shell + light workbench, colors from a single source (`web/src/theme/palette.ts`), charts via a shared `initChart()` theme, lazy-rendered through `composables/useChart.ts`
-
 ## FAQ
 
 | Symptom | Fix |
 |---|---|
 | Startup warning `平台库结构初始化失败` (metadata schema init failed) | Check `DBPilot:ConnectionString` and DB reachability; ignorable if you don't need persistence yet |
 | Home page 404 / stale UI | Frontend not built: `cd web && npm install && npm run build`, rebuild (`dotnet build`), restart |
-| Logged out after every restart | `DBPILOT_MASTER_KEY` not set (expected behavior) |
+| Startup error "DBPilot 主密钥未配置" (master key not configured) | The master key is required: set `DBPilot:Auth:Secret` or the env var `DBPILOT_MASTER_KEY` (either one), see [Configuration](#configuration-appsettingsjson) |
 | Performance insight empty | Instance enabled and collecting? Insights need ~1 minute of samples |
 | Deadlock / slow SQL events not showing yet | Event files have ~1 minute write buffering — wait and refresh |
 

@@ -18,6 +18,8 @@ DBPilot 持续采集数据库实例的性能数据，在一个 Web 控制台里�
 - [亮点](#亮点)
 - [截图](#截图)
 - [快速开始](#快速开始)
+- [登录密码与主密钥](#登录密码与主密钥)
+- [源码调试](#源码调试)
 - [架构](#架构)
 - [功能一览](#功能一览)
 - [引擎支持矩阵](#引擎支持矩阵)
@@ -25,7 +27,6 @@ DBPilot 持续采集数据库实例的性能数据，在一个 Web 控制台里�
 - [对被监控实例的性能影响](#对被监控实例的性能影响)
 - [配置（appsettings.json）](#配置appsettingsjson)
 - [库引用接入（NuGet）](#库引用接入nuget)
-- [开发](#开发)
 - [常见问题](#常见问题)
 - [许可](#许可)
 
@@ -78,39 +79,108 @@ using DBPilot.AspNetCore.Extension;
 using DBPilot.Core.Providers;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.SqlServer);  // 平台库引擎
+builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.Sqlite);  // 平台库引擎：SQLite 单文件零依赖，开箱即用
 
 var app = builder.Build();
 app.UseDBPilot();
 app.Run();
 ```
 
-`appsettings.json`——只需一条连接串，指向一个空库（表结构自动创建）：
+`appsettings.json`——抄这份模板即可跑（SQLite 形态，占位处换成自己的值）：
 
 ```json
 {
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": { "Microsoft": "Warning", "System": "Warning" }
+    }
+  },
   "DBPilot": {
-    "ConnectionString": "Server=...;Database=dbpilot;User Id=...;Password=...;TrustServerCertificate=true"
-  }
+    "ConnectionString": "Data Source=dbpilot_platform.db",
+    "Mcp": { "ApiKey": "<随机 key，非空即开启 MCP，留空 = 关>" },
+    "Auth": {
+      "Username": "admin",
+      "PasswordHash": "pbkdf2$100000$IOaBWezPYRnzEbBWYwLxZA==$xBWm8jjDfanDmyRttfnZoG4MIk8lcF0UnDbpjJuWaEU=",
+      "Secret": "<你的主密钥（≥32 字符随机串）>"
+    }
+  },
+  "AllowedHosts": "*"
 }
 ```
+
+几处说明：`ConnectionString` 与 `Auth:Secret` 两条必填（连接串指向 SQLite 库文件、启动自动建库建表；主密钥用于登录 Cookie 签名与实例凭据加密，缺失启动即报错，生成方法见[登录密码与主密钥](#登录密码与主密钥)）；`PasswordHash` 这一串就是默认密码 `dbpilot@2026` 的哈希，不动即用默认密码登录；`Mcp:ApiKey` 留空 = MCP 关。
 
 ```bash
 dotnet run    # → http://localhost:5000
 ```
 
-浏览器打开后用默认账号 `admin` / `dbpilot@2026` 登录（**部署后先改密码**，见[配置](#配置appsettingsjson)），然后接入第一个被监控实例：**实例管理 → 新增**（地址 + 账号密码，凭据加密存储）→ 连接测试 → 启用。实时页面立即可用，历史数据随运行积累。
+浏览器打开后用默认账号 `admin` / `dbpilot@2026` 登录（**部署后先改密码**，见[登录密码与主密钥](#登录密码与主密钥)），然后接入第一个被监控实例：**实例管理 → 新增**（地址 + 账号密码，凭据加密存储）→ 连接测试 → 启用。实时页面立即可用，历史数据随运行积累。
 
-这套接入的现成副本在 [`samples/DBPilot.Sample.SqlServer`](samples/DBPilot.Sample.SqlServer)（另有 MySQL :5201 / SQLite :5203 / PostgreSQL :5204 变体），喜欢从源码构建：
+### 平台库换 SQL Server
+
+平台库换引擎只改两处（`PlatformEngine` 与连接串，其余配置不变；MySQL / PostgreSQL 同理，换 `DbpilotEngine.MySql` / `DbpilotEngine.PostgreSql`）：
+
+```csharp
+builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.SqlServer);
+```
+
+```json
+"ConnectionString": "Server=<你的地址>,1433;Initial Catalog=dbpilot;User Id=<账号>;Password=<密码>;Max Pool Size=20;Encrypt=False;TrustServerCertificate=True"
+```
+
+连接串指向一个空库即可（库已存在或账号有建库权限），表结构启动时自动创建。
+
+> 平台库用 SQLite 只为开箱零依赖，适合试用与单机轻量部署（不支持多进程 Roles 形态）。长期/生产建议换 SQL Server / MySQL / PostgreSQL——届时只改 `PlatformEngine` 与连接串，平台库引擎与被监控引擎是两个独立轴，已接入的被监控实例不受影响。
+> 上面这套接入的现成宿主在 [`samples/`](samples/)（SqlServer :5200 / MySql :5201 / Sqlite :5203 / PostgreSql :5204 四变体），从源码构建与调试见[源码调试](#源码调试)。
+
+## 登录密码与主密钥
+
+**修改登录密码**：密码以 PBKDF2 哈希存储（`pbkdf2$iterations$salt$hash`），写入 `DBPilot:Auth:PasswordHash`。生成不依赖本仓库——任意目录建一个 `hash.cs`（.NET 10 文件式应用，自动拉包，版本号可换最新）：
+
+```csharp
+#:package DBPilot.Core@0.5.2
+Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
+```
 
 ```bash
-dotnet build
-cd samples/DBPilot.Sample.SqlServer
-cp appsettings.template.json appsettings.json   # 填入你的连接串
+dotnet run hash.cs <新密码>    # 输出整行填入 DBPilot:Auth:PasswordHash，重启生效
+```
+
+已克隆仓库的更省事：`dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <新密码>`（四个 Sample 任一均可）。
+
+**主密钥（`Auth:Secret` / 环境变量 `DBPILOT_MASTER_KEY`，二选一必填）**：登录 Cookie 签名 + 实例凭据 AES-GCM 加密共用，缺失启动即报错（防重启后已录入实例的密码无法解密）。生成随手一个：
+
+```bash
+openssl rand -base64 32                                    # Linux / macOS / Git Bash
+# PowerShell：[guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N")
+```
+
+## 源码调试
+
+从源码构建跑起来。相比 NuGet 接入，额外需要 **Node.js 20+**：内嵌 Web UI 由前端构建产出（产物不进 git；NuGet 包里带的是已构建好的前端）——克隆后先跑一次，之后仅前端有改动才需要重跑：
+
+```bash
+git clone https://github.com/SkyChenSky/DBPilot.git
+cd DBPilot
+cd web && npm install && npm run build    # ① 产出前端资产
+cd .. && dotnet build                     # ② 内嵌进 DLL
+cd samples/DBPilot.Sample.SqlServer       # ③ 起一个宿主（另有 MySql :5201 / Sqlite :5203 / PostgreSql :5204 变体）
+cp appsettings.template.json appsettings.json   # 填入连接串与 Auth:Secret
 dotnet run                                      # → http://localhost:5200
 ```
 
-> 从源码构建额外需要 Node.js 20+：克隆后先跑一次 `cd web && npm install && npm run build`——内嵌 Web UI 由这一步产出（产物不进 git；NuGet 包里带的是已构建好的前端），之后仅前端有改动才需要重跑。
+日常开发（改后端热重载 + 前端 dev server）：
+
+```bash
+scripts\run\dev.bat      # 或开两个终端：
+dotnet watch --project samples/DBPilot.Sample.SqlServer   # 后端（Swagger: /swagger）
+cd web && npm run dev                                     # 前端 → http://localhost:5173
+```
+
+- `scripts\run\test.bat`：编译 + 单元测试 + 前端构建一次跑完
+- `scripts/test/`：开发自测负载脚本（SQL Server / MySQL；造数 → 负载 → 验证 → 清理），**不要在真实/生产库执行**，见 `scripts/README.md`
+- 前端约定：暗色外壳 + 浅色工作台；色值单一来源 `web/src/theme/palette.ts`；图表统一 `initChart()`（`dbpilot` 主题）+ `composables/useChart.ts` 懒渲染
 
 ## 架构
 
@@ -207,11 +277,10 @@ flowchart LR
 
 内置只读 MCP Server（`/mcp`，Streamable HTTP + API Key），把指标/慢SQL/死锁/阻塞/索引证据以 11 个只读工具交给 AI agent，用自然语言做归因。工具走平台查询服务的统一口径，SQL 文本默认截断防上下文爆炸，每次调用记审计日志。
 
-**开启**（appsettings.json，默认关）：
+**开启**（appsettings.json，默认关；`ApiKey` 非空即开启，无独立开关）：
 
 ```json
 "DBPilot": {
-  "Modules": { "Mcp": { "Enabled": true } },
   "Mcp": { "ApiKey": "换成一个足够随机的 key" }
 }
 ```
@@ -260,14 +329,15 @@ GROUP BY login_name;
 
 ## 配置（appsettings.json）
 
-必填一项（`DBPilot:ConnectionString`）+ 平台库引擎二选一显式指定（委托枚举或 `DBPilot:PlatformEngine` 配置，都没有启动即报错）；其余全部选填、内置默认。
+必填两键一值：`DBPilot:ConnectionString` + `DBPilot:PlatformEngine`（委托枚举或配置键，二选一形态）+ 主密钥（`DBPilot:Auth:Secret` 或环境变量 `DBPILOT_MASTER_KEY`，二选一），缺失启动即报错；其余全部选填、内置默认。
 
 | 配置 | 档 | 说明 |
 |---|---|---|
 | `DBPilot:ConnectionString` | **必填** | 平台库连接串；库和表结构启动时自动创建 |
 | `DBPilot:PlatformEngine` | **必填（二选一）** | `sqlserver` / `mysql` / `postgresql` / `sqlite`（**无默认值**）——库接入写委托 `o.PlatformEngine = DbpilotEngine.SqlServer`（优先），配置形态写本键（`AddDBPilot` 自动读取）；决定建表方言与 ORM 方言，**与被监控实例的引擎无关**（监控什么引擎由引用的引擎包决定） |
-| `DBPilot:Auth:Username` / `DBPilot:Auth:PasswordHash` / `DBPilot:Auth:Secret` | 选填 | 登录账号/密码哈希/加密盐（内置默认 admin/无密码/随机）；改密码：`dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <新密码>`，输出写入 `DBPilot:Auth:PasswordHash` |
-| `DBPILOT_MASTER_KEY`（环境变量） | 选填 | 凭据加密密钥；不设则重启后需重新登录，设了则实例密码重启后仍可解密 |
+| `DBPilot:Auth:Secret` | **必填（与环境变量二选一）** | 主密钥：登录 Cookie 签名 + 实例凭据 AES-GCM 加密；≥32 字符随机串；缺失启动即报错（防重启后已录入实例密码不可解密） |
+| `DBPILOT_MASTER_KEY`（环境变量） | **必填（与 Auth:Secret 二选一）** | 主密钥的环境变量形态，容器/密钥管理部署友好；配置值优先 |
+| `DBPilot:Auth:Username` / `DBPilot:Auth:PasswordHash` | 选填 | 登录账号（默认 `admin`）/ 密码哈希（默认密码 `dbpilot@2026`）；修改见[登录密码与主密钥](#登录密码与主密钥) |
 | `DBPilot:Mcp:ApiKey` | 选填 | MCP Server 开关（非空即开启，缺省空 = 关；`MaxSqlHeadLength`/`MaxRows` 调返回量） |
 | `DBPilot:Roles` | 选填 | 进程角色（Web / Collector，默认双开）；多进程部署用「1 采集器 + N 个 Web」，两个 Collector 连同一平台库会双采 |
 | `DBPilot:AutoInitSchema` | 选填 | 启动时自动初始化平台库结构（默认 true；表结构归 DBA 管理的部署置 false） |
@@ -313,25 +383,13 @@ app.Run();
 - 前端静态资产双通道：包内 `buildTransitive` targets 自动落到消费方 `wwwroot`（build/publish 均可），同时 DLL 内嵌清单兜底——即使 wwwroot 为空页面也能出
 - 细粒度方法仍可用（`AddDbpilotWeb`（内含 Auth）/`AddDbpilotMcp`/`AddDbpilotQuartz`/...），供高级组合
 
-## 开发
-
-```bash
-scripts\run\dev.bat      # 或开两个终端：
-dotnet watch --project samples/DBPilot.Sample.SqlServer   # 后端（Swagger: /swagger）
-cd web && npm run dev                                     # 前端 → http://localhost:5173
-```
-
-- `scripts\run\test.bat`：编译 + 单元测试 + 前端构建一次跑完
-- `scripts/test/`：开发自测负载脚本（SQL Server / MySQL；造数 → 负载 → 验证 → 清理），**不要在真实/生产库执行**，见 `scripts/README.md`
-- 前端约定：暗色外壳 + 浅色工作台；色值单一来源 `web/src/theme/palette.ts`；图表统一 `initChart()`（`dbpilot` 主题）+ `composables/useChart.ts` 懒渲染
-
 ## 常见问题
 
 | 现象 | 处理 |
 |---|---|
 | 启动告警 `平台库结构初始化失败` | 检查 `DBPilot:ConnectionString` 与数据库可达性；暂不接库可忽略 |
 | 打开首页 404 / 旧版本页面 | 未构建前端：`cd web && npm install && npm run build` 后重新 `dotnet build` 再重启 |
-| 登录后重启就掉线 | 未设置 `DBPILOT_MASTER_KEY`（预期行为） |
+| 启动报错「DBPilot 主密钥未配置」 | 主密钥必填：设置 `DBPilot:Auth:Secret` 或环境变量 `DBPILOT_MASTER_KEY`（二选一），见[配置](#配置appsettingsjson) |
 | 性能洞察无数据 | 确认实例已启用且采集正常，采样满 1 分钟后生成 |
 | 死锁/慢SQL 事件看不到 | 事件落盘有约 1 分钟缓冲延迟，稍等后刷新 |
 
