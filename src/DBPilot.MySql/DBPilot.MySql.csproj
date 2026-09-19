@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>DBPilot engine package for MySQL 8.0+ — monitoring provider (performance_schema / slow_log) plus platform-store support so MySQL can also host the metadata DB.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DBPilot.UnitTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DBPilot.Core\DBPilot.Core.csproj" />
+    <ProjectReference Include="..\DBPilot.Storage\DBPilot.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Chloe" Version="5.56.0" />
+    <PackageReference Include="Chloe.MySql" Version="5.56.0" />
+    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 平台库结构脚本按引擎分目录存放于 scripts/database/mysql/，随引擎包内嵌 -->
+    <EmbeddedResource Include="..\..\scripts\database\mysql\schema.sql" LogicalName="DBPilot.MySql.Scripts.schema.sql" />
+  </ItemGroup>
+
+</Project>

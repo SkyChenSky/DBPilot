@@ -1,0 +1,10 @@
+<Project>
+  <!-- nupkg 消费方透传：把包内 staticwwwroot 前端产物以 ContentWithTargetPath 注入消费方输出/发布目录的 wwwroot。
+       项目引用不经过本文件（其静态文件由 DLL 内嵌清单兜底），仅包引用生效。 -->
+  <ItemGroup>
+    <ContentWithTargetPath Include="$(MSBuildThisFileDirectory)..\staticwwwroot\**\*">
+      <TargetPath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </ContentWithTargetPath>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <Compile Remove="logs\**" />
+    <Content Remove="logs\**" />
+    <EmbeddedResource Remove="logs\**" />
+    <None Remove="logs\**" />
+  </ItemGroup>
+
+  <!-- wwwroot 目录本体必须存在（Development 环境 StaticWebAssets loader 依赖；内容已改由 AspNetCore 库内嵌清单提供） -->
+  <Target Name="EnsureWwwroot" BeforeTargets="PrepareForBuild">
+    <MakeDir Directories="wwwroot" Condition="!Exists('wwwroot')" />
+  </Target>
+
+  <!-- 只引 MySql 引擎包：单引擎部署形态（输出目录无 DBPilot.SqlServer.dll → 自动发现只注册 mysql） -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DBPilot.AspNetCore\DBPilot.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.MySql\DBPilot.MySql.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.SqlServer\DBPilot.SqlServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

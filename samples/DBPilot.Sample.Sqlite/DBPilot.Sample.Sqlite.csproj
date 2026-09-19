@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <Compile Remove="logs\**" />
+    <Content Remove="logs\**" />
+    <EmbeddedResource Remove="logs\**" />
+    <None Remove="logs\**" />
+  </ItemGroup>
+
+  <!-- wwwroot 目录本体必须存在（Development 环境 StaticWebAssets loader 依赖；内容已改由 AspNetCore 库内嵌清单提供） -->
+  <Target Name="EnsureWwwroot" BeforeTargets="PrepareForBuild">
+    <MakeDir Directories="wwwroot" Condition="!Exists('wwwroot')" />
+  </Target>
+
+  <!-- 平台库引 Sqlite 包（仅存储模块，无监控 Provider）；监控引擎轴照常引引擎包：SQLite 单文件形态可任接双引擎实例 -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DBPilot.AspNetCore\DBPilot.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.Sqlite\DBPilot.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.SqlServer\DBPilot.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.MySql\DBPilot.MySql.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

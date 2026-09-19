@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Turn any ASP.NET Core app into the DBPilot console — Web API, read-only MCP server, auth, Quartz collectors and the embedded web UI. builder.AddDBPilot() + app.UseDBPilot() and you are running.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DBPilot.UnitTests" />
+  </ItemGroup>
+
+  <!-- wwwroot 静态资产：① 内嵌进 DLL（ManifestEmbeddedFileProvider 运行期兜底，项目引用/包引用都生效）；
+       ② Content+Pack 进 nupkg staticwwwroot/ + buildTransitive .targets（消费方 build/publish 落到其 wwwroot）-->
+  <PropertyGroup>
+    <GenerateEmbeddedFilesManifest>true</GenerateEmbeddedFilesManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="wwwroot\**\*">
+      <!-- LogicalName 保留 \ 分层（点号会被 manifest 任务当成同一段目录名），根段 DBPilot.AspNetCore.wwwroot 与 UseDbpilotWeb 的子路径参数对应 -->
+      <LogicalName>DBPilot.AspNetCore.wwwroot\%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="wwwroot\**\*" Pack="true" PackagePath="staticwwwroot" CopyToPublishDirectory="Never" CopyToOutputDirectory="Never" />
+    <None Include="build\DBPilot.AspNetCore.targets" Pack="true" PackagePath="buildTransitive" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DBPilot.Core\DBPilot.Core.csproj" />
+    <ProjectReference Include="..\DBPilot.Storage\DBPilot.Storage.csproj" />
+    <ProjectReference Include="..\DBPilot.Common\DBPilot.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.11" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <PackageReference Include="Quartz" Version="3.19.1" />
+    <PackageReference Include="Quartz.AspNetCore" Version="3.19.1" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+</Project>

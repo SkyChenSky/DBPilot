@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DBPilot.Common\DBPilot.Common.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.Core\DBPilot.Core.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.MySql\DBPilot.MySql.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.PostgreSql\DBPilot.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.SqlServer\DBPilot.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.Sqlite\DBPilot.Sqlite.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.Storage\DBPilot.Storage.csproj" />
+    <ProjectReference Include="..\..\src\DBPilot.AspNetCore\DBPilot.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\samples\DBPilot.Sample.SqlServer\DBPilot.Sample.SqlServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.9.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>
