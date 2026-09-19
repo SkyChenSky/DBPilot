@@ -170,11 +170,17 @@ Build and run from source. Compared to the NuGet path this additionally requires
 ```bash
 git clone https://github.com/SkyChenSky/DBPilot.git
 cd DBPilot
-cd web && npm install && npm run build    # 1. produce the frontend assets
-cd .. && dotnet build                     # 2. embed them into the DLL
-cd samples/DBPilot.Sample.SqlServer       # 3. start a host (MySql :5201 / Sqlite :5203 / PostgreSql :5204 variants)
-cp appsettings.template.json appsettings.json   # fill in the connection string and Auth:Secret
-dotnet run                                      # → http://localhost:5200
+scripts\run\setup.bat    # one shot: frontend build + compile + sample appsettings.json (default SqlServer host; pass MySql / Sqlite / PostgreSql to switch)
+```
+
+Two manual steps remain: edit `samples/DBPilot.Sample.SqlServer/appsettings.json` (connection string + `Auth:Secret`), then `dotnet run --project samples/DBPilot.Sample.SqlServer` (→ http://localhost:5200).
+
+On non-Windows, or run manually — `setup.bat` is equivalent to:
+
+```bash
+cd web && npm install && npm run build
+cd .. && dotnet build
+cp samples/DBPilot.Sample.SqlServer/appsettings.template.json samples/DBPilot.Sample.SqlServer/appsettings.json
 ```
 
 Day-to-day development (backend hot-reload + frontend dev server):
@@ -187,7 +193,6 @@ cd web && npm run dev                                     # frontend → http://
 
 - `scripts\run\test.bat` — build + unit tests + frontend build in one go
 - `scripts/test/` — self-test load scripts (SQL Server / MySQL; generate load → verify → clean up). **Never run them against production databases.** See `scripts/README.md`
-- Frontend: dark shell + light workbench, colors from a single source (`web/src/theme/palette.ts`), charts via a shared `initChart()` theme, lazy-rendered through `composables/useChart.ts`
 
 ## Architecture
 

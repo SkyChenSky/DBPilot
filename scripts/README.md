@@ -4,7 +4,7 @@
 
 | 目录 | 用途 | 内容 |
 |---|---|---|
-| `run/` | 运行脚本（Windows 双击即用） | `start.bat` 单进程启动 / `dev.bat` 前后端热更新调试 / `test.bat` 全流程检查 |
+| `run/` | 运行脚本（Windows 双击即用） | `setup.bat` 克隆后首次构建（前端 + 编译 + 生成 sample 的 appsettings.json，可传 MySql/Sqlite/PostgreSql 选宿主，默认 SqlServer）/ `start.bat` 单进程启动 / `dev.bat` 前后端热更新调试 / `test.bat` 全流程检查 |
 | `database/sqlserver/` | 平台库结构（SQL Server 方言） | `schema.sql`（GO 分批幂等，构建时嵌入 `DBPilot.Storage`，启动按 `DBPilot:PlatformEngine=sqlserver` 自动初始化；亦可 DBA 手工执行） |
 | `database/mysql/` | 平台库结构（MySQL 8.0+ 方言） | `schema.sql`（CREATE TABLE IF NOT EXISTS 幂等 + 索引内联，启动按 `DBPilot:PlatformEngine=mysql` 自动初始化） |
 | `test/sqlserver/` | 页面功能测试脚本（对被监控 SQL Server 实例执行） | 见下方 `test/sqlserver/` 脚本索引 |

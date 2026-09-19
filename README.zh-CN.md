@@ -169,11 +169,17 @@ openssl rand -base64 32                                    # Linux / macOS / Git
 ```bash
 git clone https://github.com/SkyChenSky/DBPilot.git
 cd DBPilot
-cd web && npm install && npm run build    # ① 产出前端资产
-cd .. && dotnet build                     # ② 内嵌进 DLL
-cd samples/DBPilot.Sample.SqlServer       # ③ 起一个宿主（另有 MySql :5201 / Sqlite :5203 / PostgreSql :5204 变体）
-cp appsettings.template.json appsettings.json   # 填入连接串与 Auth:Secret
-dotnet run                                      # → http://localhost:5200
+scripts\run\setup.bat    # 一次跑完：前端构建 + 编译 + 生成 sample 的 appsettings.json（默认 SqlServer 宿主，换宿主传参：setup.bat MySql / Sqlite / PostgreSql）
+```
+
+剩下两步手动：编辑 `samples/DBPilot.Sample.SqlServer/appsettings.json`（连接串 + `Auth:Secret`）→ `dotnet run --project samples/DBPilot.Sample.SqlServer`（→ http://localhost:5200）。
+
+非 Windows 或想手动执行时，`setup.bat` 等价于：
+
+```bash
+cd web && npm install && npm run build
+cd .. && dotnet build
+cp samples/DBPilot.Sample.SqlServer/appsettings.template.json samples/DBPilot.Sample.SqlServer/appsettings.json
 ```
 
 日常开发（改后端热重载 + 前端 dev server）：
@@ -186,7 +192,6 @@ cd web && npm run dev                                     # 前端 → http://lo
 
 - `scripts\run\test.bat`：编译 + 单元测试 + 前端构建一次跑完
 - `scripts/test/`：开发自测负载脚本（SQL Server / MySQL；造数 → 负载 → 验证 → 清理），**不要在真实/生产库执行**，见 `scripts/README.md`
-- 前端约定：暗色外壳 + 浅色工作台；色值单一来源 `web/src/theme/palette.ts`；图表统一 `initChart()`（`dbpilot` 主题）+ `composables/useChart.ts` 懒渲染
 
 ## 架构
 
