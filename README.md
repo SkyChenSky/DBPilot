@@ -137,18 +137,24 @@ The connection string may point at an empty database (existing, or an account al
 
 ## Password and master key
 
-**Change the login password**: passwords are stored as PBKDF2 hashes (`pbkdf2$iterations$salt$hash`) in `DBPilot:Auth:PasswordHash`. Generating one does not require this repository — create a `hash.cs` in a directory **without a project file** (your home or temp directory works; .NET 10 file-based app, the package directive pulls the dependency automatically, bump the version as needed. Note: it cannot live inside a project directory such as dbpilot-demo — there `dotnet run` prefers the project and `hash.cs` is passed to it as an argument):
+**Change the login password**: passwords are stored as PBKDF2 hashes (`pbkdf2$iterations$salt$hash`) in `DBPilot:Auth:PasswordHash` — changing the password means replacing that hash. Three steps:
+
+1. In a directory **without a project file** (your home or a temp directory), create a two-line `hash.cs`. **Do not put it inside dbpilot-demo or any project directory** — there `dotnet run` runs the project and `hash.cs` is passed to it as an argument:
 
 ```csharp
 #:package DBPilot.Core@0.5.2
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 
+2. Run it in that directory; the whole output line is the hash of your new password:
+
 ```bash
-dotnet run hash.cs <new-password>    # paste the whole output into DBPilot:Auth:PasswordHash, restart to apply
+dotnet run hash.cs <new-password>
 ```
 
-If you cloned the repository: `dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <new-password>` (any of the four samples works).
+3. Paste that line into `DBPilot:Auth:PasswordHash` in `appsettings.json` (replacing the old value), restart to apply.
+
+If you cloned the repository, skip the three steps: `dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <new-password>` (any of the four samples works).
 
 **Master key (`Auth:Secret` or env `DBPILOT_MASTER_KEY` — either one, required)**: shared by login-cookie signing and instance-credential AES-GCM encryption; startup fails without it (protects against instance credentials becoming undecryptable after a restart). Generate one on the spot:
 

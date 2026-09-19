@@ -136,18 +136,24 @@ builder.AddDBPilot(o => o.PlatformEngine = DbpilotEngine.SqlServer);
 
 ## 登录密码与主密钥
 
-**修改登录密码**：密码以 PBKDF2 哈希存储（`pbkdf2$iterations$salt$hash`），写入 `DBPilot:Auth:PasswordHash`。生成不依赖本仓库——在一个**没有工程文件的目录**（如用户主目录、临时目录）建 `hash.cs`（.NET 10 文件式应用，自动拉包，版本号可换最新。注意：不能放在 dbpilot-demo 这类工程目录里——工程目录下 `dotnet run` 优先跑工程，`hash.cs` 会被当成应用参数）：
+**修改登录密码**：密码以 PBKDF2 哈希（`pbkdf2$iterations$salt$hash`）存于 `DBPilot:Auth:PasswordHash`——改密码就是换掉这个哈希值，三步：
+
+1. 在一个**没有工程文件的目录**（如用户主目录、临时目录）新建 `hash.cs`，内容两行。**不能放在 dbpilot-demo 这类工程目录里**——那里 `dotnet run` 跑的是工程，`hash.cs` 会被当成参数传给工程：
 
 ```csharp
 #:package DBPilot.Core@0.5.2
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 
+2. 在该目录执行，输出的整行就是新密码的哈希：
+
 ```bash
-dotnet run hash.cs <新密码>    # 输出整行填入 DBPilot:Auth:PasswordHash，重启生效
+dotnet run hash.cs <新密码>
 ```
 
-已克隆仓库的更省事：`dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <新密码>`（四个 Sample 任一均可）。
+3. 把输出整行填入 `appsettings.json` 的 `DBPilot:Auth:PasswordHash`（替换原来的那一串），重启服务生效。
+
+已克隆仓库的可跳过上面三步：`dotnet run --project samples/DBPilot.Sample.SqlServer -- --hash <新密码>`（四个 Sample 任一均可）。
 
 **主密钥（`Auth:Secret` / 环境变量 `DBPILOT_MASTER_KEY`，二选一必填）**：登录 Cookie 签名 + 实例凭据 AES-GCM 加密共用，缺失启动即报错（防重启后已录入实例的密码无法解密）。生成随手一个：
 
