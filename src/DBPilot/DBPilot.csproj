@@ -4,6 +4,7 @@
   <PropertyGroup>
     <PackageId>DBPilot</PackageId>
     <Description>DBPilot — self-hosted database autonomous diagnostics platform (Alibaba Cloud DAS-style) for SQL Server, MySQL and PostgreSQL: performance trends, AAS insight, Top SQL, query-plan change tracking, blocking/deadlock analysis and a read-only MCP server for AI agents. Metapackage: references DBPilot.AspNetCore plus all engine packages (SqlServer, MySql, PostgreSql, Sqlite) for one-line install.</Description>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
 
