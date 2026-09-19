@@ -20,6 +20,8 @@ public class McpHostFixture : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("DBPilot:ConnectionString", "");
+        // 主密钥必填（缺失启动即报错）：固定测试值，不依赖 sample appsettings
+        builder.UseSetting("DBPilot:Auth:Secret", "unit-test-master-key-0123456789abcdef");
         // PlatformEngine 无默认值（必须显式指定）：测试宿主固定 sqlserver（引擎模块经自动发现注册）
         builder.UseSetting("DBPilot:PlatformEngine", "sqlserver");
         // ApiKey 非空即开启（无独立 Enabled 开关）：关闭语义 = 显式置空（须覆盖宿主 appsettings 里可能存在的真实 Key）

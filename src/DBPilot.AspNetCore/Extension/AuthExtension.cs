@@ -1,16 +1,15 @@
-using System.Security.Cryptography;
 using DBPilot.Core.Auth;
 using DBPilot.Core.Crypto;
 using DBPilot.AspNetCore.Auth;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Serilog;
 
 namespace DBPilot.AspNetCore.Extension;
 
 /// <summary>
 /// 认证/加密模块（密钥共享链整域不拆散）：
 /// 最简登录认证（单一账号 + 签名 Cookie）+ 实例凭据 AES-GCM 加密，
-/// 主密钥回退链：DBPilot:Auth:Secret → DBPILOT_MASTER_KEY 环境变量 → 随机密钥（重启后登录会话失效，告警）。
+/// 主密钥回退链：DBPilot:Auth:Secret → DBPILOT_MASTER_KEY 环境变量；均缺失启动即报错
+/// （主密钥同时签名 Cookie 与加密实例凭据，随机密钥会让重启后已录入实例密码全部无法解密，宁可拒启）。
 /// </summary>
 public static class AuthExtension
 {
@@ -25,8 +24,9 @@ public static class AuthExtension
         authOptions.Secret ??= Environment.GetEnvironmentVariable("DBPILOT_MASTER_KEY");
         if (string.IsNullOrEmpty(authOptions.Secret))
         {
-            authOptions.Secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
-            Log.Warning("DBPilot:Auth:Secret 未配置且环境变量 DBPILOT_MASTER_KEY 缺失，已使用随机密钥（重启后所有登录会话失效）");
+            throw new InvalidOperationException(
+                "DBPilot 主密钥未配置：请在 appsettings.json 设置 DBPilot:Auth:Secret，或设置环境变量 DBPILOT_MASTER_KEY（≥32 字符随机串）。"
+                + "主密钥同时用于登录 Cookie 签名与实例凭据 AES-GCM 加密，缺失会导致重启后已录入实例的密码无法解密，故启动直接失败。");
         }
         builder.Services.TryAddSingleton(authOptions);
         builder.Services.TryAddSingleton(new AuthTicket(authOptions.Secret!));
