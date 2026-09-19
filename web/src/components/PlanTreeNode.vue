@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { PlanTreeNode as Node } from '../api/topsql'
+import type { PlanTreeNode as Node } from '../api/topSql'
 import { fmtNum } from '../utils/format'
 
 const props = defineProps<{ node: Node; depth?: number }>()

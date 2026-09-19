@@ -17,7 +17,7 @@ import {
   type TopSqlHistoryItem,
   type TopSqlHistoryMetric,
   type TopSqlHistoryResult,
-} from '../../api/topsql'
+} from '../../api/topSql'
 import EllipsisText from '../../components/EllipsisText.vue'
 import PlanTreeNode from '../../components/PlanTreeNode.vue'
 import SqlDetailModal from '../../components/SqlDetailModal.vue'
