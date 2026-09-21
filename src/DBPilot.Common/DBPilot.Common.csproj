@@ -1,4 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+<!-- 双目标：net8.0 降低包消费门槛，net10.0 保最优资产 -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
 
   <PropertyGroup>
     <Description>Shared primitives and utilities for DBPilot — the self-hosted database autonomous diagnostics platform (DAS-style) for SQL Server, MySQL and PostgreSQL.</Description>

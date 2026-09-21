@@ -1005,12 +1005,10 @@ public partial class SqlServerProvider : IDatabaseProvider
     private const int MaxFingerprints = 1000;
 
     /// <summary>指纹格式：query_hash 16 位 / sql_handle 32~64 位小写 hex。</summary>
-    [GeneratedRegex("^[0-9a-f]{16}$|^[0-9a-f]{32,64}$")]
-    private static partial Regex FingerprintRegex { get; }
+    private static readonly Regex FingerprintRegex = new("^[0-9a-f]{16}$|^[0-9a-f]{32,64}$", RegexOptions.Compiled);
 
     /// <summary>plan_handle hex 格式（64 位小写/大写）。</summary>
-    [GeneratedRegex("^[0-9a-fA-F]{16,128}$")]
-    private static partial Regex PlanHandleRegex { get; }
+    private static readonly Regex PlanHandleRegex = new("^[0-9a-fA-F]{16,128}$", RegexOptions.Compiled);
 
     /// <summary>实例连接按配置动态建上下文（每实例独立连接串，用后即弃）；initialCatalog 指定目标库（按需诊断逐库执行）。</summary>
     private static MsSqlContext CreateContext(InstanceConfig cfg, string? initialCatalog = null)

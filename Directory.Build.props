@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- 不设 TFM 默认值：props 先于工程 body 导入，无法感知 TargetFrameworks（src 九包多目标会被注入单数 TargetFramework 干扰 VS 依赖图）；
+         单目标工程一律自己声明 <TargetFramework> -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>

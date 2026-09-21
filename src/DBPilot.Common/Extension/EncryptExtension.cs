@@ -55,7 +55,7 @@ public static class EncryptExtension
 
     /// <summary>SHA256 散列前缀（取前 bytes 字节，小写十六进制）：SQL/事件指纹短哈希统一口径（如 8 字节 = 16 hex）。</summary>
     public static string Sha256PrefixHex(this string? inputStr, int bytes = 8)
-        => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(inputStr ?? string.Empty)).AsSpan(0, bytes));
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(inputStr ?? string.Empty)).AsSpan(0, bytes)).ToLowerInvariant();
 
     /// <summary>HMAC-SHA256（密钥为 UTF-8 字节，小写十六进制）。</summary>
     public static string ToHmacSha256(this string? inputStr, string secret)

@@ -6,7 +6,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/DBPilot.svg)](https://www.nuget.org/packages/DBPilot)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE.txt)
-[![.NET](https://img.shields.io/badge/.NET-10-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![.NET](https://img.shields.io/badge/.NET-8%2B-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 [![Engines](https://img.shields.io/badge/引擎-SQL%20Server%20%7C%20MySQL%20%7C%20PostgreSQL-0db7a4.svg)](#引擎支持矩阵)
 
 DBPilot 持续采集实例性能数据，在一个 Web 控制台里完成日常 DBA 工作：性能趋势与性能洞察（AAS 负载拆解）、Top SQL、执行计划变更跟踪、缺失索引建议、索引使用与碎片、阻塞分析、死锁分析、慢日志。
@@ -32,7 +32,7 @@ DBPilot 持续采集实例性能数据，在一个 Web 控制台里完成日常 
 
 ## 亮点
 
-- **单进程部署**：一个 .NET 10 进程 + 一个平台库，启动自动建库建表（SQL Server / MySQL / PostgreSQL / SQLite）
+- **单进程部署**：一个 .NET 进程（8.0+）+ 一个平台库，启动自动建库建表（SQL Server / MySQL / PostgreSQL / SQLite）
 - **三引擎监控**：SQL Server 2008~2022、MySQL 8.0+、PostgreSQL 13+。平台库引擎与被监控引擎两轴独立，任意组合
 - **<1% CPU 开销**：只读内存元数据视图（DMV / `pg_stat_*` / `performance_schema`），不扫业务表
 - **AI 就绪**：内置只读 MCP Server，11 个诊断工具交给 AI agent（Claude Code / Codex CLI），直接问"这个实例最近一小时有没有变慢的 SQL？"
@@ -58,7 +58,7 @@ DBPilot 持续采集实例性能数据，在一个 Web 控制台里完成日常 
 
 ## 快速开始
 
-最快路径是 NuGet 包（前端已内嵌，无需 Node.js）。依赖 .NET SDK 10.0+。
+最快路径是 NuGet 包（前端已内嵌，无需 Node.js）。依赖 .NET SDK 8.0+——包面向 .NET 8 及以上运行时。
 
 1. 创建宿主工程并安装元包：
 
@@ -124,7 +124,7 @@ dotnet run    # → http://localhost:5000
 
 **修改登录密码**：密码以 PBKDF2 哈希存于 `DBPilot:Auth:PasswordHash`——换密码就是换这个哈希。
 
-1. 在**没有工程文件的目录**（如用户主目录）新建 `hash.cs`。放在工程目录里会被 `dotnet run` 当成参数传给工程：
+1. 在**没有工程文件的目录**（如用户主目录）新建 `hash.cs`。放在工程目录里会被 `dotnet run` 当成参数传给工程。`#:package` 文件式应用需 .NET 10 SDK，SDK 8 用户可改用下方仓库克隆方式：
 
 ```csharp
 #:package DBPilot.Core@0.5.3

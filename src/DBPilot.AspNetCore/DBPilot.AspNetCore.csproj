@@ -1,4 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+<!-- 双目标：net8.0 降低包消费门槛，net10.0 保最优资产 -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
 
   <PropertyGroup>
     <Description>Turn any ASP.NET Core app into the DBPilot console — Web API, read-only MCP server, auth, Quartz collectors and the embedded web UI. builder.AddDBPilot() + app.UseDBPilot() and you are running.</Description>
@@ -40,7 +44,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.11" />
+    <!-- NewtonsoftJson 10.x 仅 net10.0 资产：net8.0 目标降用 8.0.x（API 面一致） -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="8.0.11" Condition="'$(TargetFramework)' == 'net8.0'" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.11" Condition="'$(TargetFramework)' == 'net10.0'" />
     <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="10.0.11" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Quartz" Version="3.19.1" />

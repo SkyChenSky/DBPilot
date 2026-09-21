@@ -5,7 +5,7 @@
 [![NuGet](https://img.shields.io/nuget/v/DBPilot.svg)](https://www.nuget.org/packages/DBPilot)
 [![NuGet downloads](https://img.shields.io/nuget/dt/DBPilot.svg)](https://www.nuget.org/packages/DBPilot)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE.txt)
-[![.NET](https://img.shields.io/badge/.NET-10-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![.NET](https://img.shields.io/badge/.NET-8%2B-512BD4.svg)](https://dotnet.microsoft.com/download/dotnet/8.0)
 [![Engines](https://img.shields.io/badge/engines-SQL%20Server%20%7C%20MySQL%20%7C%20PostgreSQL-0db7a4.svg)](#engine-support-matrix)
 
 DBPilot continuously samples your instances and serves the day-to-day DBA workflow in one web console: performance trends and insight (AAS load decomposition), Top SQL, query plan change tracking, missing-index advice, index usage & fragmentation, blocking analysis, deadlock analysis, and slow query logs.
@@ -33,7 +33,7 @@ DBPilot continuously samples your instances and serves the day-to-day DBA workfl
 
 ## Highlights
 
-- **Single-process deployment** — one .NET 10 process + one metadata DB, schema auto-created on startup (SQL Server / MySQL / PostgreSQL / SQLite).
+- **Single-process deployment** — one .NET process (8.0+) + one metadata DB, schema auto-created on startup (SQL Server / MySQL / PostgreSQL / SQLite).
 - **Monitors three engines** — SQL Server 2008–2022, MySQL 8.0+, PostgreSQL 13+. Monitoring and metadata-store engines are independent axes: any combination works.
 - **<1% CPU overhead** — collectors read only in-memory metadata views (DMVs / `pg_stat_*` / `performance_schema`); business tables are never scanned.
 - **AI-ready** — built-in read-only MCP Server exposes 11 diagnostic tools to AI agents (Claude Code, Codex CLI). Just ask: *"did any SQL slow down in the last hour?"*
@@ -59,7 +59,7 @@ DBPilot continuously samples your instances and serves the day-to-day DBA workfl
 
 ## Quick start
 
-Fastest path: NuGet packages (frontend embedded — no Node.js). Requires .NET SDK 10.0+.
+Fastest path: NuGet packages (frontend embedded — no Node.js). Requires .NET SDK 8.0+ — packages run on .NET 8 or later.
 
 1. Create a host project and add the metapackage:
 
@@ -125,7 +125,7 @@ dotnet run    # → http://localhost:5000
 
 **Change the login password**: passwords are PBKDF2 hashes in `DBPilot:Auth:PasswordHash` — replace the hash to change the password.
 
-1. Create a two-line `hash.cs` **outside any project directory** (your home dir works). Inside a project, `dotnet run` would treat it as an argument:
+1. Create a two-line `hash.cs` **outside any project directory** (your home dir works). Inside a project, `dotnet run` would treat it as an argument. File-based apps with `#:package` need .NET SDK 10; on SDK 8 use the repo-clone alternative below:
 
 ```csharp
 #:package DBPilot.Core@0.5.3

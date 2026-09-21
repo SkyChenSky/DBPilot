@@ -1,4 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
+<!-- 双目标：net8.0 降低包消费门槛，net10.0 保最优资产 -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
 
   <PropertyGroup>
     <Description>DBPilot platform-store engine package for SQLite — embedded single-file metadata DB for single-process deployments (storage axis only; SQLite cannot be a monitored instance).</Description>
