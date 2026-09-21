@@ -127,7 +127,7 @@ dotnet run    # → http://localhost:5000
 1. 在**没有工程文件的目录**（如用户主目录）新建 `hash.cs`。放在工程目录里会被 `dotnet run` 当成参数传给工程。`#:package` 文件式应用需 .NET 10 SDK，SDK 8 用户可改用下方仓库克隆方式：
 
 ```csharp
-#:package DBPilot.Core@0.5.3
+#:package DBPilot.Core@0.5.4
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 

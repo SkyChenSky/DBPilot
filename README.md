@@ -128,7 +128,7 @@ dotnet run    # → http://localhost:5000
 1. Create a two-line `hash.cs` **outside any project directory** (your home dir works). Inside a project, `dotnet run` would treat it as an argument. File-based apps with `#:package` need .NET SDK 10; on SDK 8 use the repo-clone alternative below:
 
 ```csharp
-#:package DBPilot.Core@0.5.3
+#:package DBPilot.Core@0.5.4
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 
