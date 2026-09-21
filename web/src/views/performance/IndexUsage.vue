@@ -409,6 +409,7 @@ onMounted(async () => {
             @change="loadSnapshot"
           />
         </a-tooltip>
+        <a-button :loading="loading" :disabled="instanceId === undefined" @click="loadSnapshot">刷新</a-button>
         <a-button type="primary" :loading="loading" :disabled="instanceId === undefined" @click="recollect">重新采集</a-button>
         <a-button :disabled="!exportableUnused.length" @click="exportUnused">导出未使用脚本</a-button>
         <a-button v-if="!noFrag" :disabled="!exportableFrag.length" @click="exportFrag">导出碎片脚本</a-button>
@@ -528,7 +529,7 @@ onMounted(async () => {
         </a-table-column>
         <a-table-column title="索引" :width="indexColW">
           <template #default="{ record }">
-            <div class="oneline">
+            <div class="oneline" :title="[record.indexName, record.isUnique ? 'UQ' : '', record.isUnused ? '未使用' : ''].filter(Boolean).join(' ｜ ')">
               <span>{{ record.indexName }}</span>
               <a-tag v-if="record.isUnique" color="purple" style="margin-left: 4px">UQ</a-tag>
               <a-tag v-if="record.isUnused" color="red" style="margin-left: 4px">未使用</a-tag>
@@ -539,7 +540,7 @@ onMounted(async () => {
           <template #default="{ record }">
             <div v-if="record.avgFragmentationPercent != null" class="numcell">
               <div class="numbar" :style="{ width: `${Math.min(100, Math.round(record.avgFragmentationPercent))}%`, ...fragBarStyle(record.avgFragmentationPercent) }"></div>
-              <span :style="fragTextStyle(record.avgFragmentationPercent)">{{ record.avgFragmentationPercent.toFixed(1) }}</span>
+              <span :style="fragTextStyle(record.avgFragmentationPercent)">{{ record.avgFragmentationPercent.toFixed(1) }}%</span>
             </div>
             <span v-else class="text-disabled">-</span>
           </template>
@@ -563,7 +564,7 @@ onMounted(async () => {
         </a-table-column>
         <a-table-column title="理由" :width="105">
           <template #default="{ record }">
-            <span class="oneline" :class="reasonText(record) === '-' ? 'text-disabled' : ''">{{ reasonText(record) }}</span>
+            <span class="oneline" :class="reasonText(record) === '-' ? 'text-disabled' : ''" :title="reasonText(record) === '-' ? undefined : reasonText(record)">{{ reasonText(record) }}</span>
           </template>
         </a-table-column>
         <a-table-column title="优先级" :width="58" align="center">
@@ -576,16 +577,16 @@ onMounted(async () => {
           <template #default="{ record }">{{ record.usedPageCount ?? '-' }}</template>
         </a-table-column>
         <a-table-column title="查找" data-index="userSeeks" :width="90" :sorter="(a: any, b: any) => a.userSeeks - b.userSeeks">
-          <template #default="{ record }"><div class="oneline">{{ record.userSeeks }} <span class="ratiotxt">{{ ratio(record.userSeeks, totalOps(record)) }}</span></div></template>
+          <template #default="{ record }"><div class="oneline" :title="`${record.userSeeks}（占读写总量 ${ratio(record.userSeeks, totalOps(record)) || '0'}）`">{{ record.userSeeks }} <span class="ratiotxt">{{ ratio(record.userSeeks, totalOps(record)) }}</span></div></template>
         </a-table-column>
         <a-table-column title="扫描" data-index="userScans" :width="90" :sorter="(a: any, b: any) => a.userScans - b.userScans">
-          <template #default="{ record }"><div class="oneline">{{ record.userScans }} <span class="ratiotxt">{{ ratio(record.userScans, totalOps(record)) }}</span></div></template>
+          <template #default="{ record }"><div class="oneline" :title="`${record.userScans}（占读写总量 ${ratio(record.userScans, totalOps(record)) || '0'}）`">{{ record.userScans }} <span class="ratiotxt">{{ ratio(record.userScans, totalOps(record)) }}</span></div></template>
         </a-table-column>
         <a-table-column title="书签查找" data-index="userLookups" :width="90" :sorter="(a: any, b: any) => a.userLookups - b.userLookups">
-          <template #default="{ record }"><div class="oneline">{{ record.userLookups }} <span class="ratiotxt">{{ ratio(record.userLookups, totalOps(record)) }}</span></div></template>
+          <template #default="{ record }"><div class="oneline" :title="`${record.userLookups}（占读写总量 ${ratio(record.userLookups, totalOps(record)) || '0'}）`">{{ record.userLookups }} <span class="ratiotxt">{{ ratio(record.userLookups, totalOps(record)) }}</span></div></template>
         </a-table-column>
         <a-table-column title="更新" data-index="userUpdates" :width="90" :sorter="(a: any, b: any) => a.userUpdates - b.userUpdates">
-          <template #default="{ record }"><div class="oneline">{{ record.userUpdates }} <span class="ratiotxt">{{ ratio(record.userUpdates, totalOps(record)) }}</span></div></template>
+          <template #default="{ record }"><div class="oneline" :title="`${record.userUpdates}（占读写总量 ${ratio(record.userUpdates, totalOps(record)) || '0'}）`">{{ record.userUpdates }} <span class="ratiotxt">{{ ratio(record.userUpdates, totalOps(record)) }}</span></div></template>
         </a-table-column>
         <a-table-column title="主键" :width="52" align="center">
           <template #default="{ record }">{{ record.isPrimaryKey ? '是' : '否' }}</template>

@@ -118,6 +118,20 @@ public partial class MySqlProvider : IDatabaseProvider
                     result.MissingPermissions.AddRange(EvaluatePsSizing(QueryVars(ctx,
                         "performance_schema_max_digest_length", "performance_schema_max_sql_text_length",
                         "performance_schema_events_statements_history_size", "performance_schema_max_statement_stack")));
+
+                // ⑦ 业务库可见性：schemata 仅显示账号有权可见的库——0 个业务库 = 账号对全部业务库
+                // 无任何权限（库列表空 + 逐库采集空批次假成功，实测案例：只授服务器级权限的手建账号）
+                if (ctx.SqlQuery<int>("""
+                        /* dbpilot */
+                        SELECT COUNT(*) AS Value
+                        FROM information_schema.schemata
+                        WHERE schema_name NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys', '__recycle_bin__')
+                        """).FirstOrDefault() == 0)
+                {
+                    Add("任意业务库 SELECT（当前 0 个业务库可见）",
+                        "库列表为空：索引使用率 / Top SQL / 慢日志的按库过滤不可用，逐库采集为空批次",
+                        "GRANT SELECT ON '<业务库>'.* TO '<账号>'@'%';");
+                }
             }
             catch (Exception ex)
             {

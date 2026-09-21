@@ -153,8 +153,9 @@ public sealed class SqliteDialect : IPlatformDialect
                substr(MAX(sql_text), 1, 500)                                   AS SampleSql,   -- 样例取字典序最大文本（同类模板文本相近）
                MAX(db_name)                                                    AS DbName,
                COUNT(*)                                                        AS Count,
-               CAST(100.0 * SUM(duration_ms)
-                    / NULLIF(SUM(SUM(duration_ms)) OVER (), 0) AS DECIMAL(10,1)) AS TotalRatio,
+               -- SQLite 无 DECIMAL 类型：CAST(...) AS DECIMAL 仅 NUMERIC 亲和性不舍入（浮点原样透传），小数收敛一律 ROUND
+               ROUND(100.0 * SUM(duration_ms)
+                    / NULLIF(SUM(SUM(duration_ms)) OVER (), 0), 1)             AS TotalRatio,
                AVG(CAST(duration_ms AS INTEGER))                               AS AvgMs,
                MAX(duration_ms)                                                AS MaxMs,
                SUM(cpu_ms)                                                     AS CpuTotalMs,
@@ -184,8 +185,8 @@ public sealed class SqliteDialect : IPlatformDialect
                substr(MAX(t.sql_text), 1, 500)                                AS SampleSql,   -- 样例取字典序最大文本
                MAX(d.db_name)                                                 AS DbName,
                CAST(SUM(d.exec_count) AS INTEGER)                             AS Count,
-               CAST(100.0 * SUM(d.total_elapsed_ms)
-                    / NULLIF(SUM(SUM(d.total_elapsed_ms)) OVER (), 0) AS DECIMAL(10,1)) AS TotalRatio,
+               ROUND(100.0 * SUM(d.total_elapsed_ms)
+                    / NULLIF(SUM(SUM(d.total_elapsed_ms)) OVER (), 0), 1)      AS TotalRatio,
                CAST(SUM(d.total_elapsed_ms) * 1.0
                     / NULLIF(SUM(d.exec_count), 0) AS INTEGER)                AS AvgMs,       -- 均值=Σ耗时/Σ次数（累计窗口求和口径）
                MAX(d.max_elapsed_ms)                                          AS MaxMs,
@@ -196,16 +197,16 @@ public sealed class SqliteDialect : IPlatformDialect
                NULL                                                           AS RowsAvg,
                NULL                                                           AS RowsMax,
                SUM(d.total_logical_reads)                                     AS ReadsTotal,
-               CAST(SUM(d.total_logical_reads) * 1.0
-                    / NULLIF(SUM(d.exec_count), 0) AS DECIMAL(18,1))          AS ReadsAvg,
+               ROUND(SUM(d.total_logical_reads) * 1.0
+                    / NULLIF(SUM(d.exec_count), 0), 1)                         AS ReadsAvg,
                NULL                                                           AS ReadsMax,
                SUM(d.total_physical_reads)                                    AS PreadsTotal,
-               CAST(SUM(d.total_physical_reads) * 1.0
-                    / NULLIF(SUM(d.exec_count), 0) AS DECIMAL(18,1))          AS PreadsAvg,
+               ROUND(SUM(d.total_physical_reads) * 1.0
+                    / NULLIF(SUM(d.exec_count), 0), 1)                         AS PreadsAvg,
                NULL                                                           AS PreadsMax,
                SUM(d.total_writes)                                            AS WritesTotal,
-               CAST(SUM(d.total_writes) * 1.0
-                    / NULLIF(SUM(d.exec_count), 0) AS DECIMAL(18,1))          AS WritesAvg,
+               ROUND(SUM(d.total_writes) * 1.0
+                    / NULLIF(SUM(d.exec_count), 0), 1)                         AS WritesAvg,
                NULL                                                           AS WritesMax
         FROM dbpilot_top_sql_delta d
         INNER JOIN dbpilot_sql_template t ON t.instance_id = d.instance_id AND t.fingerprint = d.fingerprint

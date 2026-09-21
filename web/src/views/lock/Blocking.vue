@@ -242,7 +242,7 @@ const eventColumns = computed(() => [
   { title: '数据库', key: 'db', width: dbW.value },
   { title: '被阻塞', dataIndex: 'blockedCount', width: 70 },
   { title: '最长等待', key: 'maxWait', width: 85 },
-  { title: '状态', key: 'resolved', width: 75 },
+  { title: '状态', key: 'resolved', width: 90 },
   { title: '操作', key: 'op', width: 60, fixed: 'right' as const },
 ])
 
@@ -494,7 +494,7 @@ onBeforeUnmount(() => {
             :loading="histLoading"
             row-key="id"
             size="small"
-            :scroll="{ x: 698 + TIME_COL_W + headW + dbW }"
+            :scroll="{ x: 713 + TIME_COL_W + headW + dbW }"
             :pagination="{
               current: histQuery.page,
               pageSize: histQuery.limit,

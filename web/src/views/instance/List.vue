@@ -253,6 +253,7 @@ onMounted(load)
         allow-clear
         @search="search"
       />
+      <a-button :loading="loading" @click="load">刷新</a-button>
       <a-button class="toolbar-right" type="primary" @click="openCreate">接入实例</a-button>
     </div>
 
@@ -277,7 +278,7 @@ onMounted(load)
             </a-tooltip>
           </template>
           <template v-else-if="column.key === 'address'">
-            <span class="mono">{{ record.host }}:{{ record.port }}</span>
+            <span class="mono" :title="`${record.host}:${record.port}`">{{ record.host }}:{{ record.port }}</span>
           </template>
           <template v-else-if="column.key === 'engine'">
             <a-tag :color="engineBadgeColor(record.engine)">{{ engineLabel(record.engine) }}</a-tag>

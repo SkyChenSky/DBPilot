@@ -1,4 +1,5 @@
 using DBPilot.Core.Indexes;
+using DBPilot.Core.Providers;
 using DBPilot.Storage.Entities;
 
 namespace DBPilot.UnitTests.IndexTests;
@@ -161,5 +162,17 @@ public class MissingIndexSnapshotTests
         Assert.Equal(2, trend.Count);           // 空批次也有趋势点
         Assert.Equal(1, trend[0].Count);
         Assert.Equal(0, trend[1].Count);        // 但计数为 0
+    }
+
+    [Fact]
+    public void InaccessibleDbs_Create_含库名与修复指引()
+    {
+        var msg = DbpilotInaccessibleDbsException.Create("缺失索引", ["dbA", "dbB"]).Message;
+
+        Assert.Contains("dbA、dbB", msg);
+        Assert.Contains("缺失索引采集", msg);
+        Assert.Contains("用户映射或库内权限不足", msg);           // 文案覆盖两类根因
+        Assert.Contains("CREATE USER", msg);                     // 修复指引核心动作
+        Assert.Contains("VIEW DATABASE STATE", msg);             // 碎片扫描所需权限
     }
 }

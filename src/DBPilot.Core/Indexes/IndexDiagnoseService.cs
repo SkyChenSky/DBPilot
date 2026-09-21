@@ -119,6 +119,10 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
         {
             return ServiceResult<bool>.Failed(ex.Message);   // 引擎能力边界文案直出（不做"内部错误"归并）
         }
+        catch (DbpilotInaccessibleDbsException ex)
+        {
+            return ServiceResult<bool>.Failed(ex.Message);   // 账号缺库级访问文案直出（含修复指引）
+        }
         catch (Exception ex)
         {
             return ServiceResult<bool>.Failed($"采集失败：{ex.FriendlyMessage()}");
@@ -141,7 +145,9 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
 
         var rows = new List<DbpilotMissingIndexSnapshot>();
         var filteredStale = 0;
-        foreach (var dbName in await TargetDatabasesAsync(cfg, null))
+        var targets = await TargetDatabasesAsync(cfg, null);
+        var skipped = new List<string>();
+        foreach (var dbName in targets)
         {
             try
             {
@@ -183,11 +189,19 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
                     });
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // 无权限访问的库跳过，不影响其他库
+                // 不可访问的库跳过，不影响其他库（Warning 留痕：权限缺失时页面只剩空批次，
+                // 无日志则表现为"静默没数据"——实测 RDS 账号无库内用户映射即落入此分支）
+                Log.Warning(ex, "实例 {Id} 缺失索引采集跳过库 {Db}", e.Id, dbName);
+                skipped.Add(dbName);
             }
         }
+
+        // 全部目标库被跳过 = 假成功陷阱（落空批次标记行会掩盖"一个库都没采到"）：
+        // 不落库直接抛错——Job 路径记 Error，手动采集路径文案直达页面
+        if (targets.Count > 0 && skipped.Count == targets.Count)
+            throw DbpilotInaccessibleDbsException.Create("缺失索引", skipped);
 
         // 空批次标记行（本批 DMV 0 条建议时推进批次时间）+ 分批落库 + 冷却刷新
         await PersistSnapshotsAsync(db, e.Id, rows, snapTime, LastCollectUtc,
@@ -368,7 +382,9 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
         var withFrag = registry.Supports(e.Engine, DbpilotFeatures.Fragmentation);
 
         var rows = new List<DbpilotIndexUsageSnapshot>();
-        foreach (var dbName in await TargetDatabasesAsync(cfg, null))
+        var targets = await TargetDatabasesAsync(cfg, null);
+        var skipped = new List<string>();
+        foreach (var dbName in targets)
         {
             try
             {
@@ -422,10 +438,15 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
             }
             catch (Exception ex)
             {
-                // 无权限访问的库跳过，不影响其他库（Debug 级留痕，排查静默空批次）
-                Log.Debug(ex, "实例 {Id} 使用率采集跳过库 {Db}", e.Id, dbName);
+                // 不可访问的库跳过，不影响其他库（Warning 留痕排查静默空批次）
+                Log.Warning(ex, "实例 {Id} 使用率采集跳过库 {Db}", e.Id, dbName);
+                skipped.Add(dbName);
             }
         }
+
+        // 全部目标库被跳过 = 假成功陷阱，同缺失索引路径：不落空批次直接抛错
+        if (targets.Count > 0 && skipped.Count == targets.Count)
+            throw DbpilotInaccessibleDbsException.Create("索引使用率", skipped);
 
         // 空批次标记行（本批 0 条时推进批次时间）+ 分批落库 + 冷却刷新
         await PersistSnapshotsAsync(db, e.Id, rows, snapTime, LastUsageCollectUtc,

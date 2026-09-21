@@ -215,7 +215,7 @@ async function showSql(rowId: number) {
 }
 
 function fmtRatio(r?: number | null) {
-  return r == null ? '-' : `${r}%`
+  return r == null ? '-' : `${r.toFixed(1)}%`
 }
 
 // 列宽自适应：名称类列按当前数据最长值量宽（带上限，超出点击看全）
@@ -377,7 +377,7 @@ onBeforeUnmount(() => {
             <template #bodyCell="{ column, record, index }">
               <template v-if="column.key === 'seq'">{{ index + 1 }}</template>
               <template v-else-if="column.key === 'sample'">
-                <a class="fixed-cell-sql" @click="sampleText = record.sampleSql; sampleOpen = true">{{ record.sampleSql }}</a>
+                <a class="fixed-cell-sql" :title="record.sampleSql" @click="sampleText = record.sampleSql; sampleOpen = true">{{ record.sampleSql }}</a>
               </template>
               <template v-else-if="column.key === 'ratio'">
                 <span style="color: var(--danger-text); font-weight: 600">{{ fmtRatio(record.totalRatio) }}</span>
@@ -469,7 +469,7 @@ onBeforeUnmount(() => {
                 {{ fmtNum(record.writes) }}
               </template>
               <template v-else-if="column.key === 'sql'">
-                <a class="sql-preview" @click="showSql(record.id)">{{ record.sqlPreview || '(空)' }}</a>
+                <a class="sql-preview" :title="record.sqlPreview || '(空)'" @click="showSql(record.id)">{{ record.sqlPreview || '(空)' }}</a>
               </template>
             </template>
           </a-table>

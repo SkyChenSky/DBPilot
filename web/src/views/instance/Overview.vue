@@ -12,7 +12,7 @@ import { CAP, useEngineCaps } from '../../api/engine'
 import { CHART_COLORS } from '../../charts/echarts'
 import { useGlobalInstance } from '../../composables/useGlobalInstance'
 import { useCharts } from '../../composables/useChart'
-import { fmtMs, fmtNum, fmtTime, fmtTimeMinute } from '../../utils/format'
+import { fmtMsUnit, fmtNum, fmtTime, fmtTimeMinute } from '../../utils/format'
 
 /**
  * 实例概览（首页仪表盘）：当前顶栏实例的信息头 + 近 1h 关键指标卡（数值 + 峰值均值 + 迷你趋势）
@@ -146,7 +146,7 @@ async function loadEvents() {
         eventCounts.value.slowsql = r.total
         return r.items.map(i => ({
           time: i.eventTimeUtc, kind: 'slowsql' as const, route: '/slowlog',
-          text: `耗时 ${fmtMs(i.durationMs)} ｜ ${(i.sqlPreview || '(空)').slice(0, 60)}`,
+          text: `耗时 ${fmtMsUnit(i.durationMs)} ｜ ${(i.sqlPreview || '(空)').slice(0, 60)}`,
         }))
       }))
   if (cap(CAP.queryPlanSnapshot) !== 'none')
@@ -156,7 +156,7 @@ async function loadEvents() {
         eventCounts.value.plan = win.length
         return win.map(e => ({
           time: e.changedAtUtc, kind: 'plan' as const, route: '/performance/topsql',
-          text: `${fmtMs(e.oldAvgElapsedMs)} → ${fmtMs(e.newAvgElapsedMs)} ｜ 指纹 ${e.fingerprint.slice(0, 8)}…`,
+          text: `${fmtMsUnit(e.oldAvgElapsedMs)} → ${fmtMsUnit(e.newAvgElapsedMs)} ｜ 指纹 ${e.fingerprint.slice(0, 8)}…`,
         }))
       }))
   // 阻塞事件引擎无关（三引擎都有会话/阻塞采集）
@@ -255,6 +255,7 @@ onMounted(init)
         <div class="sec-head">
           <span class="sec-title">关键指标</span>
           <span class="text-tertiary" v-if="lastDataTime">近 1 小时 ｜ 数据截至 {{ fmtTime(lastDataTime) }}</span>
+          <a-button size="small" class="sec-refresh" :loading="loading" @click="load">刷新</a-button>
         </div>
         <div class="card-grid">
           <div v-for="c in cards" :key="c.key" class="m-card">
@@ -296,10 +297,10 @@ onMounted(init)
             <div v-for="(r, i) in topSql" :key="r.fingerprint" class="sql-row" @click="go('/performance/topsql')">
               <span class="rank" :class="{ top: i < 3 }">{{ i + 1 }}</span>
               <div class="sql-main">
-                <div class="sql-text">{{ (r.sqlText || `（指纹 ${r.fingerprint.slice(0, 8)}…）`).slice(0, 120) }}</div>
+                <div class="sql-text" :title="r.sqlText || `指纹 ${r.fingerprint}`">{{ (r.sqlText || `（指纹 ${r.fingerprint.slice(0, 8)}…）`).slice(0, 120) }}</div>
                 <div class="numcell sql-elapsed">
                   <div class="numbar" :style="{ width: `${Math.max(4, Math.round(r.totalElapsedMs / maxElapsed * 100))}%` }"></div>
-                  <span>执行 {{ fmtNum(r.executionCount) }} 次 ｜ 总耗时 {{ fmtMs(r.totalElapsedMs) }}</span>
+                  <span>执行 {{ fmtNum(r.executionCount) }} 次 ｜ 总耗时 {{ fmtMsUnit(r.totalElapsedMs) }}</span>
                 </div>
               </div>
             </div>
@@ -341,6 +342,10 @@ onMounted(init)
 }
 .sec-title {
   font-weight: 600;
+}
+/* 刷新按钮推到标题行右端 */
+.sec-refresh {
+  margin-left: auto;
 }
 .card-grid {
   display: grid;

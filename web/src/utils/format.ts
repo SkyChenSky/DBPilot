@@ -15,18 +15,11 @@ export function fmtTimeMinute(t?: string | null) {
   return fmtTime(t, 'YYYY-MM-DD HH:mm')
 }
 
-/** 毫秒时长（表格数值单元格，无单位后缀）：≥10s 显示秒 1 位小数，否则毫秒千分位 */
-export function fmtMs(ms?: number | null) {
-  if (ms == null) return '-'
-  if (ms >= 10_000) return `${(ms / 1000).toFixed(1)}s`
-  return Math.round(ms).toLocaleString()
-}
-
-/** 毫秒时长（节点/描述文本，带单位）：≥10s 显示秒 1 位小数，否则 `1,234ms` */
+/** 毫秒时长（带单位）：≥10s 显示秒 1 位小数，否则 `1,234ms`（表格/文本场景通用，值自带单位） */
 export function fmtMsUnit(ms?: number | null) {
   if (ms == null) return '-'
   if (ms >= 10_000) return `${(ms / 1000).toFixed(1)}s`
-  return `${Math.round(ms)}ms`
+  return `${Math.round(ms).toLocaleString()}ms`
 }
 
 /** 秒时长三段式：`45s` / `1m40s` / `1h30m`（floor 语义，不用 round） */
@@ -51,7 +44,9 @@ export function fmtAvg(n?: number | null) {
   return fmtNum(n, 1)
 }
 
-/** 占比后缀（分母 = 本次查询全部行合计，TopN 内之和可 < 100%）；0 / NULL 不显示 */
+/** 占比后缀（分母 = 本次查询全部行合计，TopN 内之和可 < 100%）；固定 2 位小数，
+ *  尾巴形态恒为 "| 45.67%"（8~10 字符）——带尾巴的表格列宽按「主值约 12 字符 + 尾巴」预算 150px；
+ *  0 / NULL 不显示 */
 export function fmtPct(p?: number | null) {
   return p != null && p > 0 ? `| ${p.toFixed(2)}%` : ''
 }

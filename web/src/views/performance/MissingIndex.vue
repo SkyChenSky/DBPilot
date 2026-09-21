@@ -254,6 +254,7 @@ onMounted(async () => {
             @change="loadSnapshot"
           />
         </a-tooltip>
+        <a-button :loading="loading" :disabled="!instanceId" @click="loadSnapshot">刷新</a-button>
         <a-button type="primary" :loading="loading" :disabled="!instanceId" @click="recollect">重新采集</a-button>
         <a-button :disabled="!filteredItems.length" @click="exportAll">导出脚本</a-button>
         <a-checkbox v-model:checked="onlyNew">仅看近 7 天新增</a-checkbox>

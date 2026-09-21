@@ -31,4 +31,24 @@ public class SqlServerProviderTests
         Assert.Contains("qs.statement_start_offset                  AS StartOffset", sql); // 键含语句偏移（同 handle 多语句不撞键）
         Assert.Contains("UPPER(N'aa'), UPPER(N'BB')", sql);                           // handle 批量 IN
     }
+
+    [Fact]
+    public void BuildHeadBlockerLastSql_三分支按版本与列存在性()
+    {
+        // ≥12（2014+）：dm_exec_input_buffer（更准的输入缓冲）
+        var (apply, col) = SqlServerProvider.BuildHeadBlockerLastSql(12, hasSessionsMostRecentSqlHandle: false);
+        Assert.Contains("sys.dm_exec_input_buffer", apply);
+        Assert.Equal("ib.event_info", col);
+
+        // <12 且 sessions 有列（自建 2008/2008R2/2012）：most_recent_sql_handle
+        (apply, col) = SqlServerProvider.BuildHeadBlockerLastSql(11, hasSessionsMostRecentSqlHandle: true);
+        Assert.Contains("s.most_recent_sql_handle", apply);
+        Assert.Equal("ib.text", col);
+
+        // <12 且 sessions 无列（RDS 安全改造剥列，实测 RDS 2012 SP4）：connections 兜底
+        (apply, col) = SqlServerProvider.BuildHeadBlockerLastSql(11, hasSessionsMostRecentSqlHandle: false);
+        Assert.Contains("sys.dm_exec_connections c", apply);
+        Assert.Contains("c.most_recent_sql_handle", apply);
+        Assert.Equal("ib.text", col);
+    }
 }

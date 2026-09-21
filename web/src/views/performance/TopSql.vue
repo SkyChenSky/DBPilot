@@ -24,7 +24,7 @@ import SqlDetailModal from '../../components/SqlDetailModal.vue'
 import SqlText from '../../components/SqlText.vue'
 import { useInstanceDatabases } from '../../composables/useInstanceDatabases'
 import { fitColumnWidth, TIME_COL_W } from '../../utils/fitColumnWidth'
-import { fmtMs, fmtNum, fmtPct, fmtTime } from '../../utils/format'
+import { fmtMsUnit, fmtNum, fmtPct, fmtTime } from '../../utils/format'
 import { CAP, useEngineCaps } from '../../api/engine'
 
 // 实例来自顶栏全局上下文：首载/切换 → 重拉库列表 + 重查总榜（计划变更榜随实例清空重查）
@@ -278,11 +278,13 @@ onMounted(async () => {
         message="暂无差值数据：采集每分钟运行，且实例重启/平台重启后的首个周期只建基线不落库；数据保留期由 Housekeeping TopSqlDeltaDays 控制"
       />
 
+      <!-- 列宽约定：带占比尾巴的四列（执行次数/总耗时/总CPU/逻辑读）按「主值 ~12 字符 + "| 45.67%" 尾巴」
+           预算 150px 单行放下；scroll.x 基数 = 各定宽列之和 1638（48+380+150×4+95×3+90×3+145），随列宽同步改 -->
       <a-table
         :data-source="result?.items ?? []"
         :row-key="(r: any) => `${r.dbName ?? ''}.${r.fingerprint}`"
         :pagination="false"
-        :scroll="{ x: 1463 + dbColW + TIME_COL_W * 2 }"
+        :scroll="{ x: 1638 + dbColW + TIME_COL_W * 2 }"
         size="small"
       >
         <a-table-column title="序号" :width="48" align="center" fixed="left">
@@ -290,45 +292,53 @@ onMounted(async () => {
         </a-table-column>
         <a-table-column title="SQL 语句" :width="380" fixed="left">
           <template #default="{ record }">
-            <a style="word-break: break-all" @click="showDetail(record)">{{ (record.sqlText || `（指纹 ${record.fingerprint.slice(0, 16)}…）`).slice(0, 120) }}</a>
+            <a style="word-break: break-all" :title="record.sqlText || `指纹 ${record.fingerprint}`" @click="showDetail(record)">{{ (record.sqlText || `（指纹 ${record.fingerprint.slice(0, 16)}…）`).slice(0, 120) }}</a>
           </template>
         </a-table-column>
         <a-table-column title="库" :width="dbColW" ellipsis>
           <template #default="{ record }">{{ record.dbName ?? '-' }}</template>
         </a-table-column>
-        <a-table-column title="执行次数" data-index="executionCount" :width="100" :sorter="(a: any, b: any) => a.executionCount - b.executionCount">
+        <a-table-column title="执行次数" data-index="executionCount" :width="150" :sorter="(a: any, b: any) => a.executionCount - b.executionCount">
           <template #default="{ record }">
-            {{ fmtNum(record.executionCount) }}
-            <span class="text-tertiary">{{ fmtPct(record.executionCountPercent) }}</span>
+            <div :title="`${fmtNum(record.executionCount)}（占全部行合计 ${record.executionCountPercent?.toFixed(2) ?? 0}%）`">
+              {{ fmtNum(record.executionCount) }}
+              <span class="text-tertiary">{{ fmtPct(record.executionCountPercent) }}</span>
+            </div>
           </template>
         </a-table-column>
-        <a-table-column title="总耗时" data-index="totalElapsedMs" :width="110" :sorter="(a: any, b: any) => a.totalElapsedMs - b.totalElapsedMs">
+        <a-table-column title="总耗时" data-index="totalElapsedMs" :width="150" :sorter="(a: any, b: any) => a.totalElapsedMs - b.totalElapsedMs">
           <template #default="{ record }">
-            <span :style="metric === 'total' ? 'font-weight: 600' : ''">{{ fmtMs(record.totalElapsedMs) }}</span>
-            <span class="text-tertiary">{{ fmtPct(record.totalElapsedPercent) }}</span>
+            <div :title="`总耗时 ${fmtMsUnit(record.totalElapsedMs)}（占全部行合计 ${record.totalElapsedPercent?.toFixed(2) ?? 0}%）`">
+              <span :style="metric === 'total' ? 'font-weight: 600' : ''">{{ fmtMsUnit(record.totalElapsedMs) }}</span>
+              <span class="text-tertiary">{{ fmtPct(record.totalElapsedPercent) }}</span>
+            </div>
           </template>
         </a-table-column>
         <a-table-column title="平均耗时" data-index="avgElapsedMs" :width="95" :sorter="(a: any, b: any) => a.avgElapsedMs - b.avgElapsedMs">
           <template #default="{ text }">
-            <span :style="metric === 'avg' ? 'font-weight: 600' : ''">{{ fmtMs(text) }}</span>
+            <span :style="metric === 'avg' ? 'font-weight: 600' : ''">{{ fmtMsUnit(text) }}</span>
           </template>
         </a-table-column>
         <a-table-column title="最大耗时" data-index="maxElapsedMs" :width="95" :sorter="(a: any, b: any) => a.maxElapsedMs - b.maxElapsedMs">
-          <template #default="{ text }">{{ fmtMs(text) }}</template>
+          <template #default="{ text }">{{ fmtMsUnit(text) }}</template>
         </a-table-column>
-        <a-table-column title="总 CPU" data-index="totalCpuMs" :width="100" :sorter="(a: any, b: any) => a.totalCpuMs - b.totalCpuMs">
+        <a-table-column title="总 CPU" data-index="totalCpuMs" :width="150" :sorter="(a: any, b: any) => a.totalCpuMs - b.totalCpuMs">
           <template #default="{ record }">
-            {{ fmtMs(record.totalCpuMs) }}
-            <span class="text-tertiary">{{ fmtPct(record.totalCpuPercent) }}</span>
+            <div :title="`总 CPU ${fmtMsUnit(record.totalCpuMs)}（占全部行合计 ${record.totalCpuPercent?.toFixed(2) ?? 0}%）`">
+              {{ fmtMsUnit(record.totalCpuMs) }}
+              <span class="text-tertiary">{{ fmtPct(record.totalCpuPercent) }}</span>
+            </div>
           </template>
         </a-table-column>
         <a-table-column title="平均 CPU" data-index="avgCpuMs" :width="95" :sorter="(a: any, b: any) => a.avgCpuMs - b.avgCpuMs">
-          <template #default="{ text }">{{ fmtMs(text) }}</template>
+          <template #default="{ text }">{{ fmtMsUnit(text) }}</template>
         </a-table-column>
-        <a-table-column title="逻辑读" data-index="totalLogicalReads" :width="115" :sorter="(a: any, b: any) => a.totalLogicalReads - b.totalLogicalReads">
+        <a-table-column title="逻辑读" data-index="totalLogicalReads" :width="150" :sorter="(a: any, b: any) => a.totalLogicalReads - b.totalLogicalReads">
           <template #default="{ record }">
-            {{ fmtNum(record.totalLogicalReads) }}
-            <span class="text-tertiary">{{ fmtPct(record.logicalReadsPercent) }}</span>
+            <div :title="`逻辑读 ${fmtNum(record.totalLogicalReads)}（占全部行合计 ${record.logicalReadsPercent?.toFixed(2) ?? 0}%）`">
+              {{ fmtNum(record.totalLogicalReads) }}
+              <span class="text-tertiary">{{ fmtPct(record.logicalReadsPercent) }}</span>
+            </div>
           </template>
         </a-table-column>
         <a-table-column title="物理读" data-index="totalPhysicalReads" :width="90" :sorter="(a: any, b: any) => a.totalPhysicalReads - b.totalPhysicalReads">
@@ -384,14 +394,14 @@ onMounted(async () => {
             </a-table-column>
             <a-table-column title="SQL 语句" :width="360">
               <template #default="{ record }">
-                <a @click="showChangeDetail(record)">{{ (record.sqlText || `（指纹 ${record.fingerprint.slice(0, 16)}…）`).slice(0, 100) }}</a>
+                <a :title="record.sqlText || `指纹 ${record.fingerprint}`" @click="showChangeDetail(record)">{{ (record.sqlText || `（指纹 ${record.fingerprint.slice(0, 16)}…）`).slice(0, 100) }}</a>
               </template>
             </a-table-column>
             <a-table-column title="库" :width="changeDbColW" ellipsis>
               <template #default="{ record }">{{ record.dbName ?? '-' }}</template>
             </a-table-column>
             <a-table-column title="平均耗时（旧 → 新）" :width="180">
-              <template #default="{ record }">{{ fmtMs(record.oldAvgElapsedMs) }} → {{ fmtMs(record.newAvgElapsedMs) }}</template>
+              <template #default="{ record }">{{ fmtMsUnit(record.oldAvgElapsedMs) }} → {{ fmtMsUnit(record.newAvgElapsedMs) }}</template>
             </a-table-column>
             <a-table-column title="倍数" :width="130">
               <template #default="{ record }">
@@ -402,14 +412,14 @@ onMounted(async () => {
               </template>
             </a-table-column>
             <a-table-column title="平均 CPU（旧 → 新）" :width="150">
-              <template #default="{ record }">{{ fmtMs(record.oldAvgWorkerMs) }} → {{ fmtMs(record.newAvgWorkerMs) }}</template>
+              <template #default="{ record }">{{ fmtMsUnit(record.oldAvgWorkerMs) }} → {{ fmtMsUnit(record.newAvgWorkerMs) }}</template>
             </a-table-column>
             <a-table-column title="平均逻辑读（旧 → 新）" :width="160">
               <template #default="{ record }">{{ record.oldAvgReads == null ? '-' : fmtNum(record.oldAvgReads) }} → {{ record.newAvgReads == null ? '-' : fmtNum(record.newAvgReads) }}</template>
             </a-table-column>
             <a-table-column title="计划哈希（旧 → 新）" :width="170">
               <template #default="{ record }">
-                <span style="font-family: consolas, monospace; font-size: 12px">{{ (record.oldPlanHash ?? '').slice(0, 8) }} → {{ record.newPlanHash.slice(0, 8) }}</span>
+                <span :title="`${record.oldPlanHash ?? ''} → ${record.newPlanHash}`" style="font-family: consolas, monospace; font-size: 12px">{{ (record.oldPlanHash ?? '').slice(0, 8) }} → {{ record.newPlanHash.slice(0, 8) }}</span>
               </template>
             </a-table-column>
             <a-table-column title="操作" :width="90" fixed="right">
@@ -429,10 +439,10 @@ onMounted(async () => {
       >
         <template #meta>
           <template v-if="detailChangeRow">
-            {{ detailChangeRow.dbName ?? '-' }} ｜ 变更 {{ fmtTime(detailChangeRow.changedAtUtc) }} ｜ 平均耗时 {{ fmtMs(detailChangeRow.oldAvgElapsedMs) }} → {{ fmtMs(detailChangeRow.newAvgElapsedMs) }} ｜ 执行次数 {{ detailChangeRow.oldExecCount ?? '-' }} → {{ detailChangeRow.newExecCount ?? '-' }}
+            {{ detailChangeRow.dbName ?? '-' }} ｜ 变更 {{ fmtTime(detailChangeRow.changedAtUtc) }} ｜ 平均耗时 {{ fmtMsUnit(detailChangeRow.oldAvgElapsedMs) }} → {{ fmtMsUnit(detailChangeRow.newAvgElapsedMs) }} ｜ 执行次数 {{ detailChangeRow.oldExecCount ?? '-' }} → {{ detailChangeRow.newExecCount ?? '-' }}
           </template>
           <template v-else-if="detailRankRow">
-            {{ detailRankRow.dbName ?? '-' }} ｜ 执行 {{ fmtNum(detailRankRow.executionCount) }} 次 ｜ 总耗时 {{ fmtMs(detailRankRow.totalElapsedMs) }} ｜ 平均 {{ fmtMs(detailRankRow.avgElapsedMs) }} ｜ 最大 {{ fmtMs(detailRankRow.maxElapsedMs) }} ｜ 逻辑读 {{ fmtNum(detailRankRow.totalLogicalReads) }}
+            {{ detailRankRow.dbName ?? '-' }} ｜ 执行 {{ fmtNum(detailRankRow.executionCount) }} 次 ｜ 总耗时 {{ fmtMsUnit(detailRankRow.totalElapsedMs) }} ｜ 平均 {{ fmtMsUnit(detailRankRow.avgElapsedMs) }} ｜ 最大 {{ fmtMsUnit(detailRankRow.maxElapsedMs) }} ｜ 逻辑读 {{ fmtNum(detailRankRow.totalLogicalReads) }}
           </template>
         </template>
       </SqlDetailModal>
@@ -493,14 +503,14 @@ onMounted(async () => {
                   </a-table-column>
                   <a-table-column title="计划哈希（旧 → 新）" :width="150">
                     <template #default="{ record }">
-                      <span style="font-family: consolas, monospace; font-size: 12px">{{ (record.oldPlanHash ?? '').slice(0, 8) }} → {{ record.newPlanHash.slice(0, 8) }}</span>
+                      <span :title="`${record.oldPlanHash ?? ''} → ${record.newPlanHash}`" style="font-family: consolas, monospace; font-size: 12px">{{ (record.oldPlanHash ?? '').slice(0, 8) }} → {{ record.newPlanHash.slice(0, 8) }}</span>
                     </template>
                   </a-table-column>
                   <a-table-column title="平均耗时" :width="120">
-                    <template #default="{ record }">{{ fmtMs(record.oldAvgElapsedMs) }} → {{ fmtMs(record.newAvgElapsedMs) }}</template>
+                    <template #default="{ record }">{{ fmtMsUnit(record.oldAvgElapsedMs) }} → {{ fmtMsUnit(record.newAvgElapsedMs) }}</template>
                   </a-table-column>
                   <a-table-column title="平均 CPU" :width="120">
-                    <template #default="{ record }">{{ fmtMs(record.oldAvgWorkerMs) }} → {{ fmtMs(record.newAvgWorkerMs) }}</template>
+                    <template #default="{ record }">{{ fmtMsUnit(record.oldAvgWorkerMs) }} → {{ fmtMsUnit(record.newAvgWorkerMs) }}</template>
                   </a-table-column>
                   <a-table-column title="平均逻辑读" :width="130">
                     <template #default="{ record }">{{ record.oldAvgReads == null ? '-' : fmtNum(record.oldAvgReads) }} → {{ record.newAvgReads == null ? '-' : fmtNum(record.newAvgReads) }}</template>
@@ -524,17 +534,17 @@ onMounted(async () => {
                   </a-table-column>
                   <a-table-column title="计划哈希" :width="120">
                     <template #default="{ record }">
-                      <span style="font-family: consolas, monospace; font-size: 12px">{{ record.queryPlanHash.slice(0, 10) }}…</span>
+                      <span :title="record.queryPlanHash" style="font-family: consolas, monospace; font-size: 12px">{{ record.queryPlanHash.slice(0, 10) }}…</span>
                     </template>
                   </a-table-column>
                   <a-table-column title="执行次数" data-index="executionCount" :width="90">
                     <template #default="{ text }">{{ fmtNum(text) }}</template>
                   </a-table-column>
                   <a-table-column title="平均耗时" :width="90">
-                    <template #default="{ record }">{{ fmtMs(record.avgElapsedMs) }}</template>
+                    <template #default="{ record }">{{ fmtMsUnit(record.avgElapsedMs) }}</template>
                   </a-table-column>
                   <a-table-column title="平均 CPU" :width="90">
-                    <template #default="{ record }">{{ fmtMs(record.avgWorkerMs) }}</template>
+                    <template #default="{ record }">{{ fmtMsUnit(record.avgWorkerMs) }}</template>
                   </a-table-column>
                   <a-table-column title="平均逻辑读" :width="100">
                     <template #default="{ record }">{{ record.avgReads == null ? '-' : fmtNum(record.avgReads) }}</template>

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Chloe.SqlServer;
@@ -50,6 +51,34 @@ public partial class SqlServerProvider : IDatabaseProvider
                     "/* dbpilot */ SELECT permission_name AS Value FROM fn_my_permissions(NULL, 'SERVER')");
 
                 result.MissingPermissions = PermissionCatalog.FindMissing(permissions);
+
+                // 库级访问自检：VIEW ANY DATABASE 让 sys.databases 全库可见，但账号在库内无用户映射时
+                // 无法进入该库（索引诊断逐库执行会整库跳过、页面静默缺数据）——HAS_DBACCESS 直接判定
+                var inaccessible = context.SqlQuery<string>("""
+                    /* dbpilot */
+                    SELECT name AS Value
+                    FROM sys.databases
+                    WHERE state = 0 AND source_database_id IS NULL
+                      AND database_id > 4
+                      AND HAS_DBACCESS(name) = 0
+                    ORDER BY name
+                    """);
+
+                if (inaccessible.Count > 0)
+                {
+                    var login = cfg.LoginName;
+                    result.MissingPermissions.Add(new MissingPermission
+                    {
+                        Permission = $"业务库访问（{inaccessible.Count} 个库无该账号的用户映射）",
+                        Impact = $"索引诊断（缺失索引 / 使用率 / 碎片）无法进入这些库，对应数据不会出现在诊断结果：{string.Join("、", inaccessible.Select(d => $"[{d}]")).Sub(180)}",
+                        FixScript = string.Join("\n", inaccessible.Take(5).Select(d => $"""
+                            USE [{d}];
+                            CREATE USER [{login}] FOR LOGIN [{login}];
+                            GRANT VIEW DEFINITION TO [{login}];
+                            GRANT VIEW DATABASE STATE TO [{login}];
+                            """)) + (inaccessible.Count > 5 ? $"\n-- 其余 {inaccessible.Count - 5} 个库同理" : ""),
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -334,17 +363,17 @@ public partial class SqlServerProvider : IDatabaseProvider
     /// 头阻塞者补查：dm_exec_requests 无该会话行 = "睡着拿锁"
     /// （事务开着锁拿着但没有活动请求）。headSessionIds 由平台侧去重后传入（拼 IN 列表，int 无注入风险）。
     /// ① 事务计数：dm_tran_session_transactions 无 open_tran_count 列（设计文档笔误），改子查询 COUNT（全版本）；
-    /// ② 最后执行语句版本分支：most_recent_sql_handle 在 SQL 2025（v17）已移除 ——
-    ///    MajorVersion ≥ 12（2014+）用 sys.dm_exec_input_buffer（且信息更准：会话当前输入缓冲），
-    ///    2008/2008R2/2012 用 most_recent_sql_handle。
+    /// ② 最后执行语句版本/能力分支（BuildHeadBlockerLastSql）：MajorVersion ≥ 12（2014+）用
+    ///    sys.dm_exec_input_buffer（且信息更准：会话当前输入缓冲）；老版本按列存在性——RDS 安全改造
+    ///    会剥掉 dm_exec_sessions.most_recent_sql_handle（实测 RDS 2012 SP4，版本号无法判定），
+    ///    无列时兜底 dm_exec_connections.most_recent_sql_handle（RDS 上保留）。
     /// </summary>
     public Task<List<HeadBlockerRow>> GetHeadBlockersAsync(InstanceConfig cfg, List<int> headSessionIds, CancellationToken ct = default)
         => Task.Run(() =>
         {
-            var lastSql = cfg.MajorVersion >= 12
-                ? "OUTER APPLY sys.dm_exec_input_buffer(s.session_id, NULL) ib"
-                : "OUTER APPLY sys.dm_exec_sql_text(s.most_recent_sql_handle) ib";
-            var lastSqlCol = cfg.MajorVersion >= 12 ? "ib.event_info" : "ib.text";
+            // 第二参短路：≥12 走 input_buffer 分支，不触发列存在性探测（省一次元数据查询）
+            var (lastSql, lastSqlCol) = BuildHeadBlockerLastSql(
+                cfg.MajorVersion, cfg.MajorVersion >= 12 || HasSessionsMostRecentSqlHandle(cfg));
 
             var sql = $"""
                 /* dbpilot */
@@ -369,6 +398,31 @@ public partial class SqlServerProvider : IDatabaseProvider
 
             return CreateContext(cfg).SqlQuery<HeadBlockerRow>(sql);
         }, ct);
+
+    /// <summary>头阻塞补查"最后语句"的版本/能力分支（纯函数，供单测）：见方法上方注释 ②。
+    /// 兜底分支 JOIN 与 APPLY 同行——SQL 对此处空白不敏感，与另两分支单行形态保持一致。</summary>
+    internal static (string ApplySql, string LastSqlCol) BuildHeadBlockerLastSql(int majorVersion, bool hasSessionsMostRecentSqlHandle)
+        => majorVersion >= 12
+            ? ("OUTER APPLY sys.dm_exec_input_buffer(s.session_id, NULL) ib", "ib.event_info")
+            : hasSessionsMostRecentSqlHandle
+                ? ("OUTER APPLY sys.dm_exec_sql_text(s.most_recent_sql_handle) ib", "ib.text")
+                : ("LEFT JOIN sys.dm_exec_connections c ON c.session_id = s.session_id OUTER APPLY sys.dm_exec_sql_text(c.most_recent_sql_handle) ib",
+                   "ib.text");
+
+    /// <summary>dm_exec_sessions.most_recent_sql_handle 列存在性探测结果（实例 host:port → 是否可用）。
+    /// 元数据查询一次进程内缓存（列存在性运行期不变；探测本身幂等，并发重复执行无害）。</summary>
+    private static readonly ConcurrentDictionary<string, bool> SessionsSqlHandleCache = new();
+
+    /// <summary>RDS 安全改造会剥掉 dm_exec_sessions.most_recent_sql_handle（版本号无法判定，
+    /// 实测 RDS 2012 SP4 无该列）——查 sys.all_columns 元数据实测判定，每实例探测一次。</summary>
+    private bool HasSessionsMostRecentSqlHandle(InstanceConfig cfg)
+        => SessionsSqlHandleCache.GetOrAdd($"{cfg.Host}:{cfg.Port}", _ =>
+            CreateContext(cfg).SqlQuery<int>("""
+                /* dbpilot */
+                SELECT COUNT(*) AS Value
+                FROM sys.all_columns
+                WHERE object_id = OBJECT_ID('sys.dm_exec_sessions') AND name = 'most_recent_sql_handle'
+                """).FirstOrDefault() > 0);
 
     /// <summary>
     /// 阻塞原因（锁资源）：dm_tran_locks 查涉及会话的锁（WAIT = 正在等的锁、GRANT = 已持有的锁），
