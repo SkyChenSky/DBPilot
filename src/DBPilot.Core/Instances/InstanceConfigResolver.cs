@@ -63,6 +63,7 @@ public static class InstanceConfigResolver
         MajorVersion = e.MajorVersion ?? 0,
         SlowSqlThresholdMs = e.SlowSqlThresholdMs,
         BlockingThresholdSec = e.BlockingThresholdSec,
+        CommandTimeoutSeconds = e.CommandTimeoutSeconds,
         XeFilePath = e.XeFilePath,
         DbFilter = e.DbFilter
     };

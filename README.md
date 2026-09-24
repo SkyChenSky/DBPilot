@@ -128,7 +128,7 @@ dotnet run    # → http://localhost:5000
 1. Create a two-line `hash.cs` **outside any project directory** (your home dir works). Inside a project, `dotnet run` would treat it as an argument. File-based apps with `#:package` need .NET SDK 10; on SDK 8 use the repo-clone alternative below:
 
 ```csharp
-#:package DBPilot.Core@0.5.4
+#:package DBPilot.Core@0.5.5
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 
@@ -171,7 +171,7 @@ Two required keys + one required value — `DBPilot:ConnectionString`, `DBPilot:
 | `DBPilot:Roles` | no | process roles (Web / Collector, both by default); multi-process = 1 collector + N web fronts — two collectors on one metadata DB double-collect |
 | `DBPilot:Jobs` | no | per-collector switch & cron; empty value = disable that collector |
 | `DBPilot:Retention` / `DBPilot:Collect` | no | retention days (auto-clean) / parallelism & backoff |
-| `DBPilot:AutoInitSchema` | no | auto-create schema on startup (default true; set false when DBAs own the schema) |
+| `DBPilot:AutoInitSchema` | no | auto-create schema on startup (default true; set false when DBAs own the schema); versioned incremental migrations (`dbpilot_schema_version`) run alongside on upgrade |
 | `DBPilot:TopSqlExcludePatterns` | no | Top SQL noise filter (LIKE patterns); default set built in, explicit empty array clears it |
 
 Monitored instances are never configured here — they live in the UI, credentials encrypted in the metadata DB.

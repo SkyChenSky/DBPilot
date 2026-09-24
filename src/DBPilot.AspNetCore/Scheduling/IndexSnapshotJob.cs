@@ -5,12 +5,21 @@ using Serilog;
 namespace DBPilot.AspNetCore.Scheduling;
 
 /// <summary>索引每日快照（默认每日 03:10，DBPilot:Jobs:IndexSnapshot）：
-/// 串行先缺失索引后索引使用率（含碎片扫描），各自 try/catch 互不影响；追加式落库见 IndexDiagnoseService。</summary>
+/// 夜间全量 = 串行先缺失索引后索引使用率（含碎片扫描），各自 try/catch 互不影响；追加式落库见 IndexDiagnoseService。
+/// 手动触发 = 页面「重新采集」经 JobDataMap 传 instanceId/kind 单实例异步执行
+/// （[DisallowConcurrentExecution] 天然防与夜间全量重叠；大库分钟级，接口立即返回不等待）。</summary>
 [DisallowConcurrentExecution]
 public class IndexSnapshotJob(IndexDiagnoseService service) : DbpilotJob
 {
     protected override async Task RunAsync(CancellationToken ct)
     {
+        var data = Context?.MergedJobDataMap;
+        if (data is not null && data.ContainsKey("instanceId"))
+        {
+            await service.RunInstanceAsync((int)data["instanceId"], (string?)data["kind"] ?? "missing");
+            return;
+        }
+
         try
         {
             await service.CollectMissingSnapshotsAsync(ct);

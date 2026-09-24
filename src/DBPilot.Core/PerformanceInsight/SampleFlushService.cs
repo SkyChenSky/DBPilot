@@ -1,6 +1,7 @@
 using Chloe;
 using DBPilot.Common;
 using DBPilot.Storage;
+using DBPilot.Storage.Dialect;
 using Mapster;
 using DBPilot.Storage.Entities;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +14,7 @@ namespace DBPilot.Core.PerformanceInsight;
 /// 环形缓冲里上一完整分钟 → MinuteAggregator 聚合 → dbpilot_active_request_sample
 /// （幂等：单事务先删该分钟再插；MarkFlushed 防重复处理；内存缓冲语义下重启丢一分钟可接受）。
 /// </summary>
-public class SampleFlushService(IServiceProvider sp, SampleBufferRegistry registry) : IDepend
+public class SampleFlushService(IServiceProvider sp, SampleBufferRegistry registry, IPlatformDialect dialect) : IDepend
 {
     static SampleFlushService()
     {
@@ -48,7 +49,7 @@ public class SampleFlushService(IServiceProvider sp, SampleBufferRegistry regist
             try
             {
                 buffer = registry.Of(instanceId);
-                await PersistSqlTemplatesAsync(db, instanceId, buffer);
+                await PersistSqlTemplatesAsync(db, dialect, instanceId, buffer);
 
                 var ticks = buffer.Minute(minute);
                 if (ticks.Count == 0 || !(marked = buffer.MarkFlushedIfNew(minute))) continue;
@@ -89,26 +90,23 @@ public class SampleFlushService(IServiceProvider sp, SampleBufferRegistry regist
         return entity;
     }
 
-    /// <summary>SQL 模板字典落库（dbpilot_sql_template，UNIQUE(instance_id, fingerprint)）：只插未持久化的新指纹。</summary>
-    private static async Task PersistSqlTemplatesAsync(DbContext db, int instanceId, InstanceSampleBuffer buffer)
+    /// <summary>SQL 模板字典落库（dbpilot_sql_template，UNIQUE(instance_id, fingerprint)）：只插未持久化的新指纹
+    /// （预查仅减无效往返；并发安全由方言原子 upsert 保证——与 TopSQL/慢SQL Job 并发撞键实测）。</summary>
+    private static async Task PersistSqlTemplatesAsync(DbContext db, IPlatformDialect dialect, int instanceId, InstanceSampleBuffer buffer)
     {
         var pending = buffer.SqlTemplates.Values.Where(t => !t.Persisted).ToList();
         foreach (var t in pending)
         {
             try
             {
-                var exists = await db.Query<DbpilotSqlTemplate>()
-                    .Where(x => x.InstanceId == instanceId && x.Fingerprint == t.Fingerprint)
-                    .AnyAsync();
-                if (!exists)
-                    await db.InsertAsync(new DbpilotSqlTemplate
-                    {
-                        InstanceId = instanceId,
-                        Fingerprint = t.Fingerprint,
-                        SqlText = t.SqlText,
-                        FirstSeen = t.FirstSeenUtc,
-                        LastSeen = DateTime.UtcNow,
-                    });
+                db.SqlQuery<int>(dialect.SqlTemplateUpsertSql(), new
+                {
+                    instanceId,
+                    fingerprint = t.Fingerprint,
+                    sqlText = t.SqlText,
+                    firstSeen = t.FirstSeenUtc,
+                    lastSeen = DateTime.UtcNow,
+                });
                 t.Persisted = true;
             }
             catch (Exception ex)

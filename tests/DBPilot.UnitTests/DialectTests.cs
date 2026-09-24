@@ -218,4 +218,46 @@ public class DialectTests
         Assert.Contains(cond, Sq.DeadlockPageRowsSql(cond));
         Assert.Contains(cond, Pg.DeadlockPageRowsSql(cond));
     }
+    [Fact]
+    public void SqlTemplateUpsertSql_四方言原子语义形态()
+    {
+        Assert.Contains("UPDLOCK, HOLDLOCK", new DBPilot.SqlServer.SqlServerDialect().SqlTemplateUpsertSql());
+        Assert.Contains("WHERE NOT EXISTS", new DBPilot.SqlServer.SqlServerDialect().SqlTemplateUpsertSql());
+        Assert.Contains("ON DUPLICATE KEY", new DBPilot.MySql.MySqlDialect().SqlTemplateUpsertSql());
+        Assert.Contains("ON CONFLICT (instance_id, fingerprint) DO NOTHING", new DBPilot.PostgreSql.PostgreSqlDialect().SqlTemplateUpsertSql());
+        Assert.Contains("ON CONFLICT(instance_id, fingerprint) DO NOTHING", new DBPilot.Sqlite.SqliteDialect().SqlTemplateUpsertSql());
+    }
+
+    [Fact]
+    public async Task SqlTemplateUpsertSql_Sqlite同键重复插入_不抛且行数恒一()
+    {
+        // 行为级：模拟并发双写者对同一 (instance_id, fingerprint) 连续 upsert 两次
+        var sql = new DBPilot.Sqlite.SqliteDialect().SqlTemplateUpsertSql();
+        using var conn = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        conn.Open();
+        using (var ddl = conn.CreateCommand())
+        {
+            ddl.CommandText = "CREATE TABLE dbpilot_sql_template (id INTEGER PRIMARY KEY AUTOINCREMENT, instance_id INTEGER NOT NULL, fingerprint TEXT NOT NULL, sql_text TEXT NOT NULL, first_seen DATETIME(3) NOT NULL, last_seen DATETIME(3) NOT NULL, CONSTRAINT uq_dbpilot_tpl UNIQUE (instance_id, fingerprint))";
+            ddl.ExecuteNonQuery();
+        }
+        for (var i = 0; i < 2; i++)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            foreach (var (name, value) in new (string, object)[] { ("@instanceId", 1L), ("@fingerprint", "fp1"), ("@sqlText", "SELECT 1"), ("@firstSeen", "2026-01-01 00:00:00"), ("@lastSeen", "2026-01-01 00:00:01") })
+            {
+                var p = cmd.CreateParameter();
+                p.ParameterName = name;
+                p.Value = value;
+                cmd.Parameters.Add(p);
+            }
+            using var reader = cmd.ExecuteReader();   // 两次执行都不抛（第二次 DO NOTHING）
+            Assert.True(reader.Read());               // 尾部 SELECT 1 有结果
+        }
+        using var count = conn.CreateCommand();
+        count.CommandText = "SELECT COUNT(*) FROM dbpilot_sql_template";
+        Assert.Equal(1L, count.ExecuteScalar());      // 行数恒一
+        await Task.CompletedTask;
+    }
+
 }

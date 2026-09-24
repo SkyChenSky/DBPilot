@@ -15,9 +15,9 @@ namespace DBPilot.Core.Indexes;
 /// <summary>
 /// 索引诊断服务：
 /// 缺失索引 = 快照单一口径：IndexSnapshotJob 每日 03:10 追加快照（原始建议行，支持"近 7 天新增"差集），
-/// 页面「重新采集」按钮经 RecollectAsync 对单实例立即补采（与 Job 同一代码路径）；
+/// 页面「重新采集」按钮经 TryBeginRecollectAsync 闸门后由 IndexSnapshotJob 异步补采（与夜间全量同一套采集实现）；
 /// 索引使用率 = 同一套快照口径：每日 Job 追加（IsUnused 采集时固化、碎片率 LIMITED 逐表扫描并入），
-/// 页面经 RecollectUsageAsync 立即补采（独立冷却字典，与缺失索引互不干扰）。
+/// 页面「重新采集」经 TryBeginRecollectAsync 闸门后由 IndexSnapshotJob 异步补采（独立冷却字典，与缺失索引互不干扰）。
 /// </summary>
 public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDatabaseProvider provider,
     ProviderRegistry registry, IPlatformDialect dialect) : IDepend
@@ -42,7 +42,7 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
     /// <summary>实例 → 最近一次索引使用率快照采集时刻（与缺失索引分开，两页冷却互不干扰）。</summary>
     private static readonly ConcurrentDictionary<int, DateTime> LastUsageCollectUtc = new();
 
-    private static readonly HashSet<string> SystemDbs = new(StringComparer.OrdinalIgnoreCase) { "master", "model", "msdb", "tempdb" };
+    private static readonly HashSet<string> SystemDbs = new(StringComparer.OrdinalIgnoreCase) { "master", "model", "msdb", "tempdb", "rdscore" };   // rdscore：阿里云 RDS 内部库（实测 CONNECT DENY 锁死）
 
     /// <summary>空批次标记行 table_name：本次采集 DMV 0 条建议时落一行推进批次时间（建好索引后建议归零场景）。</summary>
     internal const string EmptyBatchMarker = "__empty_batch__";
@@ -69,10 +69,48 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
     public Task CollectMissingSnapshotsAsync(CancellationToken ct = default)
         => CollectAllInstancesAsync("缺失索引快照", CollectInstanceAsync, ct);
 
-    /// <summary>手动重新采集（页面按钮）：对该实例立即跑一次快照采集（与每日 Job 同一代码路径）；
-    /// 冷却窗口内拒绝，防止频繁采集。</summary>
-    public Task<ServiceResult<bool>> RecollectAsync(int instanceId)
-        => RecollectInternalAsync(instanceId, LastCollectUtc, CollectInstanceAsync);
+    /// <summary>手动重新采集触发闸门（页面按钮 → Controller 触发 Job 前调用）：
+    /// 校验实例存在 + 冷却检查 + 立即占用冷却窗口（防连点双触发）；实际采集由 IndexSnapshotJob 异步执行，
+    /// 完成时刻看页面"上次采集"时间戳。</summary>
+    public async Task<ServiceResult<bool>> TryBeginRecollectAsync(int instanceId, bool usage)
+    {
+        var (err, _) = await LoadInstanceAsync(instanceId);
+        if (err != null) return ServiceResult<bool>.Failed(err);
+
+        var reject = CooldownReject(usage ? LastUsageCollectUtc : LastCollectUtc, instanceId);
+        if (reject != null) return ServiceResult<bool>.Failed(reject);
+
+        (usage ? LastUsageCollectUtc : LastCollectUtc)[instanceId] = DateTime.UtcNow;
+        return ServiceResult<bool>.Succeeded(true);
+    }
+
+    /// <summary>单实例采集入口（IndexSnapshotJob 经 JobDataMap 手动触发；夜间全量路径不走这里）：
+    /// kind = missing / usage；Unsupported 记 Debug、异常记 Error（含全库不可达修复指引文案）。</summary>
+    public async Task RunInstanceAsync(int instanceId, string kind)
+    {
+        var db = sp.GetService<DbContext>() ?? throw new InvalidOperationException(InstanceConfigResolver.DbNotConfigured);
+        var entity = await db.Query<DbpilotInstance>().Where(x => x.Id == instanceId).FirstOrDefaultAsync();
+        if (entity is null)
+        {
+            Log.Warning("手动索引采集：实例 {Id} 不存在，跳过", instanceId);
+            return;
+        }
+
+        try
+        {
+            if (kind == "usage") await CollectUsageInstanceAsync(entity);
+            else await CollectInstanceAsync(entity);
+            Log.Information("实例 {Id}（{Name}）手动{Kind}采集完成", entity.Id, entity.Name, kind == "usage" ? "使用率" : "缺失索引");
+        }
+        catch (DbpilotUnsupportedException ex)
+        {
+            Log.Debug("实例 {Id}（{Name}）手动索引采集跳过：{Reason}", entity.Id, entity.Name, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "实例 {Id}（{Name}）手动索引采集失败", entity.Id, entity.Name);
+        }
+    }
 
     /// <summary>全部启用实例快照采集（缺失索引/使用率两 Job 入口共用）：逐实例调用采集方法，
     /// Unsupported 静默跳过、其余异常记日志不中断其他实例。</summary>
@@ -98,36 +136,6 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
                 Log.Error(ex, "实例 {Id}（{Name}）{Label}采集失败", e.Id, e.Name, label);
             }
         }
-    }
-
-    /// <summary>手动重新采集共用骨架（缺失索引/使用率）：冷却窗口内拒绝；
-    /// Unsupported 文案直出（不做"内部错误"归并）、其余 FriendlyMessage。</summary>
-    private async Task<ServiceResult<bool>> RecollectInternalAsync(
-        int instanceId, ConcurrentDictionary<int, DateTime> lastCollect, Func<DbpilotInstance, Task> collectInstance)
-    {
-        var (err, entity) = await LoadInstanceAsync(instanceId);
-        if (err != null) return ServiceResult<bool>.Failed(err);
-
-        var reject = CooldownReject(lastCollect, instanceId);
-        if (reject != null) return ServiceResult<bool>.Failed(reject);
-
-        try
-        {
-            await collectInstance(entity!);
-        }
-        catch (DbpilotUnsupportedException ex)
-        {
-            return ServiceResult<bool>.Failed(ex.Message);   // 引擎能力边界文案直出（不做"内部错误"归并）
-        }
-        catch (DbpilotInaccessibleDbsException ex)
-        {
-            return ServiceResult<bool>.Failed(ex.Message);   // 账号缺库级访问文案直出（含修复指引）
-        }
-        catch (Exception ex)
-        {
-            return ServiceResult<bool>.Failed($"采集失败：{ex.FriendlyMessage()}");
-        }
-        return ServiceResult<bool>.Succeeded(true);
     }
 
     /// <summary>单实例采集：逐库查 DMV → 原始建议行（不合并/不标注，组合键跨日稳定）追加落库；失败抛出。</summary>
@@ -363,11 +371,6 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
     public Task CollectUsageSnapshotsAsync(CancellationToken ct = default)
         => CollectAllInstancesAsync("索引使用率快照", CollectUsageInstanceAsync, ct);
 
-    /// <summary>手动重新采集（页面按钮）：对该实例立即跑一次使用率快照采集（与每日 Job 同一代码路径）；
-    /// 冷却窗口内拒绝，防止频繁采集（独立字典，与缺失索引冷却互不干扰）。</summary>
-    public Task<ServiceResult<bool>> RecollectUsageAsync(int instanceId)
-        => RecollectInternalAsync(instanceId, LastUsageCollectUtc, CollectUsageInstanceAsync);
-
     /// <summary>
     /// 单实例使用率采集：逐库 DMV 使用率行（IsUnused 固化）+ 同库碎片扫描（TableName|IndexName 归一取
     /// MAX 最差分区；每表 200ms 间隔保护目标实例 IO）→ 追加落库；失败抛出。
@@ -386,9 +389,11 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
         var skipped = new List<string>();
         foreach (var dbName in targets)
         {
+            // ① 使用率查询：失败才跳库（库级语义不变——全库不可达仍走假成功防线）
+            List<DbpilotIndexUsageSnapshot> dbRows;
             try
             {
-                var dbRows = new List<DbpilotIndexUsageSnapshot>();
+                dbRows = [];
                 foreach (var i in await provider.GetIndexUsageAsync(cfg, dbName))
                 {
                     dbRows.Add(new DbpilotIndexUsageSnapshot
@@ -413,34 +418,59 @@ public class IndexDiagnoseService(IServiceProvider sp, AesGcmCrypto crypto, IDat
                         SnapshotTime = snapTime,
                     });
                 }
-
-                // 碎片并入每日快照：LIMITED 模式逐表扫描（大表优先），多分区归一取 MAX
-                if (withFrag)
-                {
-                    var fragMap = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var t in await provider.GetFragmentTablesAsync(cfg, dbName, FragCollectMinPages))
-                    {
-                        foreach (var f in await provider.GetIndexFragmentationAsync(cfg, dbName, t.ObjectId, FragCollectMinPages))
-                        {
-                            var key = $"{f.TableName}|{f.IndexName}";
-                            if (!fragMap.TryGetValue(key, out var cur) || f.AvgFragmentationPercent > cur)
-                                fragMap[key] = f.AvgFragmentationPercent;
-                        }
-                        await Task.Delay(FragTableIntervalMs);
-                    }
-
-                    foreach (var r in dbRows)
-                        if (fragMap.TryGetValue($"{r.TableName}|{r.IndexName}", out var frag))
-                            r.AvgFragmentationPercent = frag;
-                }
-
-                rows.AddRange(dbRows);
             }
             catch (Exception ex)
             {
                 // 不可访问的库跳过，不影响其他库（Warning 留痕排查静默空批次）
                 Log.Warning(ex, "实例 {Id} 使用率采集跳过库 {Db}", e.Id, dbName);
                 skipped.Add(dbName);
+                continue;
+            }
+
+            // ② 使用率行先行并入：碎片扫描任何失败不再连累已采成果（表级容错核心——
+            // 旧结构一条碎片异常会丢弃整个库的使用率 + 已扫碎片）
+            rows.AddRange(dbRows);
+
+            // ③ 碎片并入每日快照：LIMITED 模式逐表扫描（大表优先），多分区归一取 MAX；
+            //    单表失败仅跳过该表（该表行碎片率缺省 null，页面显示 '-'），其余继续
+            if (withFrag)
+            {
+                var fragMap = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    var fragSkippedTables = 0;
+                    foreach (var t in await provider.GetFragmentTablesAsync(cfg, dbName, FragCollectMinPages))
+                    {
+                        try
+                        {
+                            foreach (var f in await provider.GetIndexFragmentationAsync(cfg, dbName, t.ObjectId, FragCollectMinPages))
+                            {
+                                var key = $"{f.TableName}|{f.IndexName}";
+                                if (!fragMap.TryGetValue(key, out var cur) || f.AvgFragmentationPercent > cur)
+                                    fragMap[key] = f.AvgFragmentationPercent;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // 表级容错：巨表超时/瞬断只损失该表碎片率
+                            Log.Warning(ex, "实例 {Id} 库 {Db} 表 {Table} 碎片扫描跳过", e.Id, dbName, t.TableName);
+                            fragSkippedTables++;
+                        }
+                        await Task.Delay(FragTableIntervalMs);
+                    }
+                    if (fragSkippedTables > 0)
+                        Log.Warning("实例 {Id} 库 {Db} 碎片扫描共跳过 {Count} 张表（超时/失败，对应表碎片率缺省）",
+                            e.Id, dbName, fragSkippedTables);
+                }
+                catch (Exception ex)
+                {
+                    // 表清单获取失败：整库无碎片数据，使用率保留
+                    Log.Warning(ex, "实例 {Id} 库 {Db} 碎片表清单获取失败，本批无碎片数据（使用率已保留）", e.Id, dbName);
+                }
+
+                foreach (var r in dbRows)
+                    if (fragMap.TryGetValue($"{r.TableName}|{r.IndexName}", out var frag))
+                        r.AvgFragmentationPercent = frag;
             }
         }
 

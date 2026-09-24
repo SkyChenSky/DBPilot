@@ -256,15 +256,11 @@ async function loadSnapshot() {
 /** 立即重新采集（与每日 Job 同一代码路径，含碎片扫描；大库分钟级，超时已放宽 10 分钟） */
 async function recollect() {
   if (instanceId.value === undefined) return
-  loading.value = true
   try {
     await recollectUsage(instanceId.value)
-    await loadSnapshot()
-    message.success('重新采集完成')
+    message.info('已触发采集，请耐心等待，勿重复点击；完成后「上次采集」时间会更新')
   } catch {
-    // 冷却拒绝/采集失败：拦截器已弹错误提示
-  } finally {
-    loading.value = false
+    // 冷却拒绝：拦截器已弹错误提示
   }
 }
 
@@ -413,6 +409,9 @@ onMounted(async () => {
         <a-button type="primary" :loading="loading" :disabled="instanceId === undefined" @click="recollect">重新采集</a-button>
         <a-button :disabled="!exportableUnused.length" @click="exportUnused">导出未使用脚本</a-button>
         <a-button v-if="!noFrag" :disabled="!exportableFrag.length" @click="exportFrag">导出碎片脚本</a-button>
+        <span class="text-tertiary" style="margin-left: auto">
+          上次采集：{{ snapshotResult?.snapshotTimeUtc ? fmtTimeMinute(snapshotResult.snapshotTimeUtc) : '暂无快照（每日 03:10 采集）' }}
+        </span>
       </div>
 
       <!-- 总览统计（对齐阿里云；附注走 hint 提示；MySQL 无碎片卡降为三列） -->

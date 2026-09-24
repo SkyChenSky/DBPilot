@@ -7,6 +7,7 @@ using DBPilot.Core.Instances;
 using DBPilot.Core.PerformanceInsight;
 using DBPilot.Core.Providers;
 using DBPilot.Storage;
+using DBPilot.Storage.Dialect;
 using DBPilot.Storage.Entities;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -147,7 +148,8 @@ public class TopSqlBaselineStore : ISingletonDepend
 /// SQL 模板（指纹 → 语句文本）落 dbpilot_sql_template，历史页 JOIN 取文本。
 /// </summary>
 public class TopSqlDeltaCollectService(IServiceProvider sp, AesGcmCrypto crypto, IDatabaseProvider provider,
-    TopSqlBaselineStore baselines, CollectStateStore states, CollectOptions options, TopSqlExcludeOptions excludes) : IDepend
+    TopSqlBaselineStore baselines, CollectStateStore states, CollectOptions options, TopSqlExcludeOptions excludes,
+    IPlatformDialect dialect) : IDepend
 {
     private const int BatchSize = 500;
 
@@ -218,7 +220,7 @@ public class TopSqlDeltaCollectService(IServiceProvider sp, AesGcmCrypto crypto,
         for (var i = 0; i < deltas.Count; i += BatchSize)
             await db.InsertRangeAsync(deltas.Skip(i).Take(BatchSize).ToList());
 
-        await PersistSqlTemplatesAsync(db, instanceId, rows);
+        await PersistSqlTemplatesAsync(db, dialect, instanceId, rows);
 
         baseline.InstanceStartUtc = startUtc;
         baseline.WindowStartUtc = now;
@@ -291,8 +293,9 @@ public class TopSqlDeltaCollectService(IServiceProvider sp, AesGcmCrypto crypto,
         return (deltas, newValues);
     }
 
-    /// <summary>SQL 模板补插（dbpilot_sql_template，UNIQUE(instance_id, fingerprint)）：只插库中尚无的指纹。</summary>
-    private static async Task PersistSqlTemplatesAsync(DbContext db, int instanceId, List<TopSqlRawRow> rows)
+    /// <summary>SQL 模板补插（dbpilot_sql_template，UNIQUE(instance_id, fingerprint)）：只插库中尚无的指纹
+    /// （预查仅减无效往返；并发安全由方言原子 upsert 保证——TopSQL 与会话采样/慢SQL Job 并发撞键实测）。</summary>
+    private static async Task PersistSqlTemplatesAsync(DbContext db, IPlatformDialect dialect, int instanceId, List<TopSqlRawRow> rows)
     {
         var fresh = rows
             .GroupBy(r => r.Fingerprint, StringComparer.OrdinalIgnoreCase)
@@ -310,13 +313,13 @@ public class TopSqlDeltaCollectService(IServiceProvider sp, AesGcmCrypto crypto,
             if (existing.Contains(r.Fingerprint)) continue;
             try
             {
-                await db.InsertAsync(new DbpilotSqlTemplate
+                db.SqlQuery<int>(dialect.SqlTemplateUpsertSql(), new
                 {
-                    InstanceId = instanceId,
-                    Fingerprint = r.Fingerprint,
-                    SqlText = (r.SqlText ?? r.FullSqlText ?? "").Trim().Sub(4000),
-                    FirstSeen = DateTime.UtcNow,
-                    LastSeen = DateTime.UtcNow,
+                    instanceId,
+                    fingerprint = r.Fingerprint,
+                    sqlText = (r.SqlText ?? r.FullSqlText ?? "").Trim().Sub(4000),
+                    firstSeen = DateTime.UtcNow,
+                    lastSeen = DateTime.UtcNow,
                 });
             }
             catch (Exception ex)

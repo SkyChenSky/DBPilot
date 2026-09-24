@@ -57,10 +57,17 @@ public partial class PostgreSqlSchemaInitializer(string connectionString, ILogge
                 using var cmd = new NpgsqlCommand(batch, conn) { CommandTimeout = 120 };
                 cmd.ExecuteNonQuery();
             }
+
+            SchemaMigrations.Run(conn, typeof(PostgreSqlSchemaInitializer).Assembly,
+                "DBPilot.PostgreSql.Scripts.migrations.",
+                "CREATE TABLE IF NOT EXISTS dbpilot_schema_version (version VARCHAR(64) NOT NULL PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())",
+                _ => false,   // 脚本自带 IF NOT EXISTS 守卫
+                logger);
         }
 
         logger?.LogInformation("平台库结构初始化完成");
     }
+
 
     /// <summary>按 ";" 切分批次（剔除仅注释/空白的批次）；依赖脚本约定：字符串与注释中不含分号。</summary>
     public static string[] SplitBatches(string script) =>

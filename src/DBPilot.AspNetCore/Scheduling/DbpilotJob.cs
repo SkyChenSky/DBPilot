@@ -10,8 +10,12 @@ namespace DBPilot.AspNetCore.Scheduling;
 /// </summary>
 public abstract class DbpilotJob : IJob
 {
+    /// <summary>本次执行的 Quartz 上下文（MergedJobDataMap 等；手动触发传参走这里）。</summary>
+    protected IJobExecutionContext? Context { get; private set; }
+
     public async Task Execute(IJobExecutionContext context)
     {
+        Context = context;
         try
         {
             await RunAsync(context.CancellationToken);

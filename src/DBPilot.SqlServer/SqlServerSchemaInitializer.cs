@@ -31,8 +31,23 @@ public partial class SqlServerSchemaInitializer(string connectionString, ILogger
             cmd.ExecuteNonQuery();
         }
 
+        SchemaMigrations.Run(conn, typeof(SqlServerSchemaInitializer).Assembly,
+            "DBPilot.SqlServer.Scripts.migrations.", VersionTableSql,
+            _ => false,   // 脚本自带 IF NOT EXISTS 守卫
+            logger);
         logger?.LogInformation("平台库结构初始化完成");
     }
+
+
+    /// <summary>迁移历史表建表 SQL（internal 供单测锁方言坑：SQL Server 的 DATETIME 不支持精度参数，
+    /// 须用 DATETIME2(3)——实测 0.5.5 首版在此写 DATETIME(3) 报 2716，主 schema 同款列即 DATETIME2(3)）。</summary>
+    internal const string VersionTableSql = """
+        IF OBJECT_ID(N'dbpilot_schema_version') IS NULL
+            CREATE TABLE dbpilot_schema_version (
+                version     NVARCHAR(64)  NOT NULL PRIMARY KEY,
+                applied_at  DATETIME2(3)  NOT NULL CONSTRAINT df_dsv_applied DEFAULT (GETUTCDATE())
+            )
+        """;
 
     /// <summary>按 GO 行切分为独立批次（大小写不敏感，允许行首行尾空白）。</summary>
     public static string[] SplitBatches(string script) =>

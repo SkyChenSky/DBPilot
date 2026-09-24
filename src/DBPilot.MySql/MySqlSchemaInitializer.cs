@@ -49,10 +49,17 @@ public partial class MySqlSchemaInitializer(string connectionString, ILogger? lo
                 using var cmd = new MySqlCommand(batch, conn) { CommandTimeout = 120 };
                 cmd.ExecuteNonQuery();
             }
+
+            SchemaMigrations.Run(conn, typeof(MySqlSchemaInitializer).Assembly,
+                "DBPilot.MySql.Scripts.migrations.",
+                "CREATE TABLE IF NOT EXISTS dbpilot_schema_version (version VARCHAR(64) NOT NULL PRIMARY KEY, applied_at DATETIME(3) NOT NULL DEFAULT (UTC_TIMESTAMP(3)))",
+                ex => ex is MySqlException { Number: 1060 },   // MySQL 无 ADD COLUMN IF NOT EXISTS：重复列=已应用
+                logger);
         }
 
         logger?.LogInformation("平台库结构初始化完成");
     }
+
 
     /// <summary>按 ";" 切分批次（剔除仅注释/空白的批次）；依赖脚本约定：字符串与注释中不含分号。</summary>
     public static string[] SplitBatches(string script) =>

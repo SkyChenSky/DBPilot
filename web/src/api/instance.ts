@@ -20,6 +20,7 @@ export interface InstanceItem {
   envTag?: string | null
   slowSqlThresholdMs?: number | null
   blockingThresholdSec?: number | null
+  commandTimeoutSeconds?: number | null
   xeFilePath?: string | null
   lastError?: string | null
   lastHeartbeat?: string | null
@@ -50,6 +51,7 @@ export interface InstanceSaveRequest {
   envTag?: string
   slowSqlThresholdMs?: number
   blockingThresholdSec?: number
+  commandTimeoutSeconds?: number
   xeFilePath?: string
   dbFilter?: string
 }

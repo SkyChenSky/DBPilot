@@ -283,4 +283,12 @@ public sealed class SqliteDialect : IPlatformDialect
 
     public string InstanceLastErrorSetSql()
         => "/* dbpilot */ UPDATE dbpilot_instance SET last_error = @error WHERE id = @id AND (last_error IS NULL OR last_error <> @error)";
+
+    public string SqlTemplateUpsertSql() => """
+        /* dbpilot */
+        INSERT INTO dbpilot_sql_template (instance_id, fingerprint, sql_text, first_seen, last_seen)
+        VALUES (@instanceId, @fingerprint, @sqlText, @firstSeen, @lastSeen)
+        ON CONFLICT(instance_id, fingerprint) DO NOTHING;
+        SELECT 1 AS Value
+        """;
 }

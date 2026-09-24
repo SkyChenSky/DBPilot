@@ -32,6 +32,8 @@
   <ItemGroup>
     <!-- 平台库结构脚本按引擎分目录存放于 scripts/database/sqlserver/，随引擎包内嵌 -->
     <EmbeddedResource Include="..\..\scripts\database\sqlserver\schema.sql" LogicalName="DBPilot.SqlServer.Scripts.schema.sql" />
+    <!-- 版本化增量迁移：文件名 = V{版本}.{序号}__{描述}.sql，启动时按序执行未应用项（历史表 dbpilot_schema_version） -->
+    <EmbeddedResource Include="..\..\scripts\database\sqlserver\migrations\*.sql" LogicalName="DBPilot.SqlServer.Scripts.migrations.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

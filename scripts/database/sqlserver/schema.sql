@@ -22,6 +22,7 @@ CREATE TABLE dbpilot_instance (
     xe_file_path            NVARCHAR(256)  NULL,              -- XE 文件目录
     slow_sql_threshold_ms   INT            NOT NULL CONSTRAINT df_ins_slow DEFAULT (1000),
     blocking_threshold_sec  INT            NOT NULL CONSTRAINT df_ins_blk DEFAULT (5),
+    command_timeout_seconds INT            NOT NULL CONSTRAINT df_ins_cmdto DEFAULT (30),   -- 实例查询命令超时（秒），大库/慢盘调大（碎片扫描受益最明显）
     env_tag                 NVARCHAR(50)   NULL,              -- 生产/测试，仅展示
     db_filter               NVARCHAR(MAX)  NULL,              -- JSON：库白/黑名单
     last_error              NVARCHAR(500)  NULL,

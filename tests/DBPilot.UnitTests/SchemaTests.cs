@@ -55,6 +55,79 @@ public class SchemaTests
     };
 
     [Fact]
+    public void SqliteSchemaInitializer_存量库缺列_补列迁移生效且幂等()
+    {
+        // 老平台库（0.5.4 前无 command_timeout_seconds 列）→ Initialize 补列；再跑一遍 no-op 不炸
+        var path = Path.Combine(Path.GetTempPath(), $"dbpilot_mig_{Guid.NewGuid():N}.db");
+        try
+        {
+            // 造老库：只有 dbpilot_instance 且无新列（其余表由 Initialize 的幂等建表补齐）
+            using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
+            {
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "CREATE TABLE dbpilot_instance (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)";
+                cmd.ExecuteNonQuery();
+            }
+
+            new SqliteSchemaInitializer($"Data Source={path}").Initialize();
+            new SqliteSchemaInitializer($"Data Source={path}").Initialize();   // 幂等
+
+            using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
+            {
+                conn.Open();
+                using (var insert = conn.CreateCommand())
+                {
+                    insert.CommandText = "INSERT INTO dbpilot_instance (name) VALUES ('mig-test')";
+                    insert.ExecuteNonQuery();
+                }
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT command_timeout_seconds FROM dbpilot_instance WHERE name = 'mig-test'";
+                Assert.Equal(30L, cmd.ExecuteScalar());   // 迁移补列默认值 30 对旧行生效
+            }
+
+            // 历史表记录版本（第二次 Initialize 是 no-op，仍只有一条）
+            using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={path}"))
+            {
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT version FROM dbpilot_schema_version";
+                var versions = new List<string>();
+                using (var r = cmd.ExecuteReader())
+                    while (r.Read()) versions.Add(r.GetString(0));
+                Assert.Contains("V0.5.5.01__add_instance_command_timeout", versions);
+                Assert.Single(versions);
+            }
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();   // 清连接池句柄，文件才可删
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void SqlServerVersionTableSql_时间列须DATETIME2_锁方言坑()
+    {
+        var sql = SqlServerSchemaInitializer.VersionTableSql;
+
+        Assert.Contains("DATETIME2(3)", sql);
+        Assert.DoesNotContain("DATETIME(", sql);   // DATETIME 不支持精度参数（错误 2716，0.5.5 首版实踩）
+    }
+
+    [Fact]
+    public void SchemaMigrations_ParseVersion_版本数值排序_非字符串排序()
+    {
+        var prefix = "X.Scripts.migrations.";
+        var v9 = DBPilot.Storage.Schema.SchemaMigrations.ParseVersion(prefix + "V0.5.9.01__a.sql", prefix);
+        var v10 = DBPilot.Storage.Schema.SchemaMigrations.ParseVersion(prefix + "V0.5.10.01__b.sql", prefix);
+        Assert.True(v9 < v10);   // 0.5.9 数值上早于 0.5.10（字符串排序会颠倒）
+
+        var bad = DBPilot.Storage.Schema.SchemaMigrations.ParseVersion(prefix + "not_a_version.sql", prefix);
+        Assert.Equal(new Version(0, 0, 0), bad);   // 非法命名落 0.0.0 排最前（脚本缺失暴露于日志/断言）
+    }
+
+    [Fact]
     public void SplitBatches_SqlServer_按GO切分_去除空批次()
     {
         var batches = SqlServerSchemaInitializer.SplitBatches("SELECT 1\nGO\nGO\nSELECT 2\ngo\n-- comment only\nGO\n");

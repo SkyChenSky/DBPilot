@@ -299,9 +299,41 @@ onBeforeUnmount(() => {
         <!-- 死锁关系图（进程节点 + 资源节点 + 申请/持有边，victim 红描边） -->
         <a-card title="死锁关系图" style="margin-top: 16px">
           <div ref="chartEl" style="height: 480px; border: 1px solid var(--border-color-split); border-radius: 8px"></div>
-          <div class="text-tertiary" style="margin-top: 8px; font-size: 12px">
-            环形布局 = 等待环：牺牲进程在顶部（红框），沿圆周顺时针为 进程 →（蓝实线：申请）→ 资源 →（橙虚线：持有）→ 进程；
-            资源形状：菱形 = 键/行锁，矩形 = 页/对象锁，三角 = 并行交换｜悬停看详情，滚轮缩放可拖拽
+          <!-- 图例：图形 + 文字映射（颜色/形状与图内节点和边一致） -->
+          <div class="graph-legend">
+            <div class="legend-row">
+              <span class="lg-item">
+                <svg width="34" height="18" viewBox="0 0 34 18"><rect x="2" y="2" width="30" height="14" rx="3"   stroke-width="2" style="fill:var(--color-primary-bg, #e6f4ff);stroke:var(--color-primary, #1677ff)" /></svg>
+                进程
+              </span>
+              <span class="lg-item">
+                <svg width="34" height="18" viewBox="0 0 34 18"><rect x="2" y="2" width="30" height="14" rx="3" fill="rgba(255,77,79,.08)"  stroke-width="2.5" style="stroke:var(--danger-text, #ff4d4f)" /></svg>
+                牺牲进程（顶部）
+              </span>
+              <span class="lg-item">
+                <svg width="22" height="20" viewBox="0 0 22 20"><polygon points="11,1 21,10 11,19 1,10" fill="rgba(82,196,26,.08)"  stroke-width="2" style="stroke:var(--success-text, #52c41a)" /></svg>
+                键 / 行锁
+              </span>
+              <span class="lg-item">
+                <svg width="26" height="18" viewBox="0 0 26 18"><rect x="2" y="2" width="22" height="14" rx="2" fill="rgba(82,196,26,.08)"  stroke-width="2" style="stroke:var(--success-text, #52c41a)" /></svg>
+                页 / 对象锁
+              </span>
+              <span class="lg-item">
+                <svg width="24" height="20" viewBox="0 0 24 20"><polygon points="12,2 22,18 2,18" fill="rgba(82,196,26,.08)"  stroke-width="2" style="stroke:var(--success-text, #52c41a)" /></svg>
+                并行交换
+              </span>
+            </div>
+            <div class="legend-row">
+              <span class="lg-item">
+                <svg width="42" height="14" viewBox="0 0 42 14"><line x1="2" y1="7" x2="32" y2="7"  stroke-width="2" style="stroke:var(--color-primary, #1677ff)" /><polygon points="32,2 42,7 32,12"  style="fill:var(--color-primary, #1677ff)" /></svg>
+                申请（进程 → 资源）
+              </span>
+              <span class="lg-item">
+                <svg width="42" height="14" viewBox="0 0 42 14"><line x1="2" y1="7" x2="32" y2="7"  stroke-width="2" stroke-dasharray="5 4" style="stroke:var(--warning-text, #fa8c16)" /><polygon points="32,2 42,7 32,12"  style="fill:var(--warning-text, #fa8c16)" /></svg>
+                持有（资源 → 进程）
+              </span>
+              <span class="lg-item lg-note">环形布局 = 等待环（顺时针）；悬停看详情，滚轮缩放可拖拽</span>
+            </div>
           </div>
         </a-card>
       </template>
@@ -311,6 +343,30 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* 关系图图例：图形+文字映射（形状/颜色与 ECharts 节点边一致） */
+.graph-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.lg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.lg-note {
+  color: var(--text-tertiary);
+}
+
 /* 牺牲进程卡片标题标红（替代已废弃的 :head-style） */
 .victim-card :deep(.ant-card-head-title) {
   color: var(--danger-text);

@@ -179,15 +179,11 @@ async function loadSnapshot() {
 /** 立即重新采集（与每日 03:10 Job 同一代码路径，落库后刷新；后端有冷却窗口防频繁采集） */
 async function recollect() {
   if (!instanceId.value && instanceId.value !== 0) return
-  loading.value = true
   try {
     await recollectMissingIndexes(instanceId.value)
-    await loadSnapshot()
-    message.success('重新采集完成')
+    message.info('已触发采集，请耐心等待，勿重复点击；完成后「上次采集」时间会更新')
   } catch {
-    // 冷却拒绝/采集失败：拦截器已弹错误提示
-  } finally {
-    loading.value = false
+    // 冷却拒绝：拦截器已弹错误提示
   }
 }
 

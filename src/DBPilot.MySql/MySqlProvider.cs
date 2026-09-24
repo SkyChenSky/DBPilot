@@ -618,7 +618,14 @@ public partial class MySqlProvider : IDatabaseProvider
     }
 
     private static MySqlContext CreateContext(InstanceConfig cfg, string? initialCatalog = null)
-        => new(new MySqlConnectionFactory(BuildConnectionString(cfg, initialCatalog)));
+    {
+        // 实例级命令超时（dbpilot_instance.command_timeout_seconds，默认 30=ADO.NET 原生默认）：
+        // 大库碎片扫描单表常超 30s（dm_db_index_physical_stats 物理走页），逐实例可调
+        var ctx = new MySqlContext(new MySqlConnectionFactory(BuildConnectionString(cfg, initialCatalog)));
+        if (cfg.CommandTimeoutSeconds > 0)
+            ctx.Session.CommandTimeout = cfg.CommandTimeoutSeconds;
+        return ctx;
+    }
 
     internal static string BuildConnectionString(InstanceConfig cfg, string? initialCatalog = null)
     {

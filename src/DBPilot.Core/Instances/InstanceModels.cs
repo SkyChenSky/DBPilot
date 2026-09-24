@@ -25,6 +25,10 @@ public class InstanceConfig
 
     public int SlowSqlThresholdMs { get; set; }
     public int BlockingThresholdSec { get; set; }
+
+    /// <summary>实例查询命令超时（秒）；Provider 建上下文时应用到所有实例查询，大库碎片扫描最受益。</summary>
+    public int CommandTimeoutSeconds { get; set; } = 30;
+
     public string? XeFilePath { get; set; }
     public string? DbFilter { get; set; }
 }
@@ -50,6 +54,7 @@ public class InstanceSaveRequest
     public string? EnvTag { get; set; }
     public int SlowSqlThresholdMs { get; set; } = 1000;
     public int BlockingThresholdSec { get; set; } = 5;
+    public int CommandTimeoutSeconds { get; set; } = 30;
     public string? XeFilePath { get; set; }
     public string? DbFilter { get; set; }
 }
@@ -81,6 +86,7 @@ public class InstanceListItem
     public string? EnvTag { get; set; }
     public int SlowSqlThresholdMs { get; set; }
     public int BlockingThresholdSec { get; set; }
+    public int CommandTimeoutSeconds { get; set; }
     public string? XeFilePath { get; set; }
     public string? LastError { get; set; }
     public DateTime? LastHeartbeat { get; set; }
@@ -105,6 +111,7 @@ public class InstanceListItem
         EnvTag = e.EnvTag,
         SlowSqlThresholdMs = e.SlowSqlThresholdMs,
         BlockingThresholdSec = e.BlockingThresholdSec,
+        CommandTimeoutSeconds = e.CommandTimeoutSeconds,
         XeFilePath = e.XeFilePath,
         LastError = e.LastError,
         LastHeartbeat = e.LastHeartbeat,

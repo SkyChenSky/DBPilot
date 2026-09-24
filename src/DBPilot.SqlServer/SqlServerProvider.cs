@@ -60,6 +60,7 @@ public partial class SqlServerProvider : IDatabaseProvider
                     FROM sys.databases
                     WHERE state = 0 AND source_database_id IS NULL
                       AND database_id > 4
+                      AND name <> 'rdscore'   -- RDS 内部管理库：云厂商挂 CONNECT DENY 锁死（实测），非授权可解
                       AND HAS_DBACCESS(name) = 0
                     ORDER BY name
                     """);
@@ -140,6 +141,7 @@ public partial class SqlServerProvider : IDatabaseProvider
                 /* dbpilot */
                 SELECT name AS Value FROM sys.databases
                 WHERE state = 0 AND source_database_id IS NULL
+                  AND name <> 'rdscore'   -- RDS 内部库（CONNECT DENY 锁死）：不进库列表/采集范围
                 ORDER BY name
                 """;
 
@@ -1066,7 +1068,14 @@ public partial class SqlServerProvider : IDatabaseProvider
 
     /// <summary>实例连接按配置动态建上下文（每实例独立连接串，用后即弃）；initialCatalog 指定目标库（按需诊断逐库执行）。</summary>
     private static MsSqlContext CreateContext(InstanceConfig cfg, string? initialCatalog = null)
-        => new(BuildConnectionString(cfg, initialCatalog));
+    {
+        // 实例级命令超时（dbpilot_instance.command_timeout_seconds，默认 30=ADO.NET 原生默认）：
+        // 大库碎片扫描单表常超 30s（dm_db_index_physical_stats 物理走页），逐实例可调
+        var ctx = new MsSqlContext(BuildConnectionString(cfg, initialCatalog));
+        if (cfg.CommandTimeoutSeconds > 0)
+            ctx.Session.CommandTimeout = cfg.CommandTimeoutSeconds;
+        return ctx;
+    }
 
     /// <summary>构建实例连接串：Encrypt=False + TrustServerCertificate=True（内部网络 + 2008 兼容），
     /// ApplicationName=DBPilot 供 XE 会话/排除规则识别平台自监控连接。</summary>

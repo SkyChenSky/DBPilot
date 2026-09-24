@@ -29,8 +29,14 @@ public partial class SqliteSchemaInitializer(string connectionString, ILogger? l
             cmd.ExecuteNonQuery();
         }
 
+        SchemaMigrations.Run(conn, typeof(SqliteSchemaInitializer).Assembly,
+            "DBPilot.Sqlite.Scripts.migrations.",
+            "CREATE TABLE IF NOT EXISTS dbpilot_schema_version (version TEXT NOT NULL PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')))",
+            ex => ex is SqliteException e && e.Message.Contains("duplicate column name"),   // SQLite 无列守卫：重复列=已应用
+            logger);
         logger?.LogInformation("平台库结构初始化完成");
     }
+
 
     /// <summary>按 ";" 切分批次（剔除仅注释/空白的批次）；依赖脚本约定：字符串与注释中不含分号。</summary>
     public static string[] SplitBatches(string script) =>

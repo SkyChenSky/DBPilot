@@ -57,6 +57,7 @@ public class InstanceService(IServiceProvider sp, AesGcmCrypto crypto, IDatabase
             Enabled = e.Enabled,
             SlowSqlThresholdMs = e.SlowSqlThresholdMs,
             BlockingThresholdSec = e.BlockingThresholdSec,
+            CommandTimeoutSeconds = e.CommandTimeoutSeconds,
             XeFilePath = e.XeFilePath,
             DbFilter = e.DbFilter
         };
@@ -86,6 +87,7 @@ public class InstanceService(IServiceProvider sp, AesGcmCrypto crypto, IDatabase
             EnvTag = request.EnvTag?.Trim(),
             SlowSqlThresholdMs = request.SlowSqlThresholdMs,
             BlockingThresholdSec = request.BlockingThresholdSec,
+            CommandTimeoutSeconds = request.CommandTimeoutSeconds,
             XeFilePath = request.XeFilePath?.Trim(),
             DbFilter = request.DbFilter,
             CreateTime = DateTime.UtcNow
@@ -127,6 +129,7 @@ public class InstanceService(IServiceProvider sp, AesGcmCrypto crypto, IDatabase
         entity.EnvTag = request.EnvTag?.Trim();
         entity.SlowSqlThresholdMs = request.SlowSqlThresholdMs;
         entity.BlockingThresholdSec = request.BlockingThresholdSec;
+        entity.CommandTimeoutSeconds = request.CommandTimeoutSeconds;
         entity.XeFilePath = request.XeFilePath?.Trim();
         entity.DbFilter = request.DbFilter;
         entity.UpdateTime = DateTime.UtcNow;
@@ -286,6 +289,7 @@ public class InstanceService(IServiceProvider sp, AesGcmCrypto crypto, IDatabase
         if (r.Password?.Length > 128) return "密码过长（≤128 字符）";
         if (r.SlowSqlThresholdMs is < 1 or > 600000) return "慢 SQL 阈值必须在 1~600000ms 之间";
         if (r.BlockingThresholdSec is < 1 or > 3600) return "阻塞判定阈值必须在 1~3600s 之间";
+        if (r.CommandTimeoutSeconds is < 5 or > 86400) return "查询超时必须在 5~86400 秒之间";
         if (!r.Engine.IsNullOrWhiteSpace() && !DbpilotEngines.Known.Contains(NormalizeEngine(r.Engine)))
             return $"不支持的引擎类型「{r.Engine.Trim()}」";
         return null;

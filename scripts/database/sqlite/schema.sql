@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS dbpilot_instance (
     xe_file_path            TEXT NULL,              -- XE 文件目录
     slow_sql_threshold_ms   INTEGER NOT NULL DEFAULT 1000,
     blocking_threshold_sec  INTEGER NOT NULL DEFAULT 5,
+    command_timeout_seconds INTEGER NOT NULL DEFAULT 30,   -- 实例查询命令超时（秒）
     env_tag                 TEXT NULL,              -- 生产/测试，仅展示
     db_filter               TEXT NULL,              -- JSON：库白/黑名单
     last_error              TEXT NULL,

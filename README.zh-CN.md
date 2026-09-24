@@ -127,7 +127,7 @@ dotnet run    # → http://localhost:5000
 1. 在**没有工程文件的目录**（如用户主目录）新建 `hash.cs`。放在工程目录里会被 `dotnet run` 当成参数传给工程。`#:package` 文件式应用需 .NET 10 SDK，SDK 8 用户可改用下方仓库克隆方式：
 
 ```csharp
-#:package DBPilot.Core@0.5.4
+#:package DBPilot.Core@0.5.5
 Console.WriteLine(DBPilot.Core.Auth.PasswordHasher.Hash(args[0]));
 ```
 
@@ -170,7 +170,7 @@ openssl rand -base64 32      # Linux / macOS / Git Bash
 | `DBPilot:Roles` | 选填 | 进程角色（Web / Collector，默认双开）；多进程 = 1 采集器 + N 个 Web，两个 Collector 连同一平台库会双采 |
 | `DBPilot:Jobs` | 选填 | 各采集任务开关与 cron；显式空值 = 禁用该任务 |
 | `DBPilot:Retention` / `DBPilot:Collect` | 选填 | 历史保留天数（到期自动清理）/ 并行度与退避 |
-| `DBPilot:AutoInitSchema` | 选填 | 启动自动初始化平台库结构（默认 true；表结构归 DBA 管理时置 false） |
+| `DBPilot:AutoInitSchema` | 选填 | 启动自动初始化平台库结构（默认 true；表结构归 DBA 管理时置 false）；升级时随附版本化增量迁移（历史表 dbpilot_schema_version） |
 | `DBPilot:TopSqlExcludePatterns` | 选填 | Top SQL 噪音过滤（LIKE 模式数组）；缺省用内置默认集，显式空数组 = 清空 |
 
 被监控实例不在这里配置——在页面"实例管理"维护，凭据加密存于平台库。

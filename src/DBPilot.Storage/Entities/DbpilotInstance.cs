@@ -45,6 +45,9 @@ public class DbpilotInstance
     /// <summary>JSON：库白/黑名单</summary>
     [Column("db_filter")] public string? DbFilter { get; set; }
 
+    /// <summary>实例查询命令超时（秒），Provider 建上下文时应用；大库碎片扫描最受益</summary>
+    [Column("command_timeout_seconds")] public int CommandTimeoutSeconds { get; set; } = 30;
+
     [Column("last_error")] public string? LastError { get; set; }
     [Column("last_heartbeat")] public DateTime? LastHeartbeat { get; set; }
     [Column("create_time")] public DateTime CreateTime { get; set; }

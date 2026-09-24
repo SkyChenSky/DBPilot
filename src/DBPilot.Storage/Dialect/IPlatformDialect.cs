@@ -77,4 +77,10 @@ public interface IPlatformDialect
 
     /// <summary>写入实例 last_error（失败标注，值不变时跳过）。</summary>
     string InstanceLastErrorSetSql();
+
+    /// <summary>SQL 模板并发安全插入（dbpilot_sql_template，UNIQUE(instance_id, fingerprint)）：
+    /// 已存在则无操作。TopSQL / 会话采样两 Job（或多宿主共享平台库）并发插同一指纹时
+    /// "先查后插"存在竞态窗口（实测撞 uq_dbpilot_tpl）——各方言用原生原子 upsert 消除窗口；
+    /// 尾部 SELECT 适配 Chloe SqlQuery（无非查询执行面）。参数：@instanceId/@fingerprint/@sqlText/@firstSeen/@lastSeen。</summary>
+    string SqlTemplateUpsertSql();
 }

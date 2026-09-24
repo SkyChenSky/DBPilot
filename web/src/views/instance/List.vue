@@ -84,6 +84,7 @@ const form = reactive<InstanceSaveRequest>({
   envTag: undefined,
   slowSqlThresholdMs: 1000,
   blockingThresholdSec: 5,
+  commandTimeoutSeconds: 30,
   xeFilePath: undefined,
 })
 
@@ -97,7 +98,7 @@ function openCreate() {
   editingId.value = null
   Object.assign(form, {
     name: '', host: '', port: 1433, engine: 'sqlserver', loginName: '', password: '',
-    enabled: true, envTag: undefined, slowSqlThresholdMs: 1000, blockingThresholdSec: 5, xeFilePath: undefined,
+    enabled: true, envTag: undefined, slowSqlThresholdMs: 1000, blockingThresholdSec: 5, commandTimeoutSeconds: 30, xeFilePath: undefined,
   })
   testResult.value = null
   modalOpen.value = true
@@ -116,6 +117,7 @@ function openEdit(row: InstanceItem) {
     envTag: row.envTag ?? undefined,
     slowSqlThresholdMs: row.slowSqlThresholdMs ?? 1000,
     blockingThresholdSec: row.blockingThresholdSec ?? 5,
+    commandTimeoutSeconds: row.commandTimeoutSeconds ?? 30,
     xeFilePath: row.xeFilePath ?? undefined,
   })
   testResult.value = null
@@ -387,6 +389,18 @@ onMounted(load)
               <a-col :span="12">
                 <a-form-item label="阻塞判定阈值（秒）">
                   <a-input-number v-model:value="form.blockingThresholdSec" :min="1" :max="3600" style="width: 100%" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item label="查询超时（秒）">
+                  <a-input-number v-model:value="form.commandTimeoutSeconds" :min="5" :max="86400" style="width: 100%" />
+                </a-form-item>
+              </a-col>
+              <a-col :span="12">
+                <a-form-item>
+                  <span class="text-tertiary" style="font-size: 12px">
+                    查询超时：对该实例执行查询的命令超时（默认 30 秒）。大库碎片扫描单表常超 30 秒，可按需调大
+                  </span>
                 </a-form-item>
               </a-col>
             </a-row>

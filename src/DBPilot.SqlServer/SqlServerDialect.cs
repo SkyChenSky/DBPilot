@@ -265,4 +265,13 @@ public sealed class SqlServerDialect : IPlatformDialect
 
     public string InstanceLastErrorSetSql()
         => "/* dbpilot */ UPDATE dbpilot_instance SET last_error = @error WHERE id = @id AND (last_error IS NULL OR last_error <> @error)";
+
+    public string SqlTemplateUpsertSql() => """
+        /* dbpilot */
+        INSERT INTO dbpilot_sql_template (instance_id, fingerprint, sql_text, first_seen, last_seen)
+        SELECT @instanceId, @fingerprint, @sqlText, @firstSeen, @lastSeen
+        WHERE NOT EXISTS (SELECT 1 FROM dbpilot_sql_template WITH (UPDLOCK, HOLDLOCK)
+                          WHERE instance_id = @instanceId AND fingerprint = @fingerprint);
+        SELECT 1 AS Value
+        """;
 }
